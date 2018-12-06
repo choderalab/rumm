@@ -104,7 +104,8 @@ class Encoder(tf.keras.Model):
         x_tensor = self.embedding(x_tensor)
         if self.reverse == True:
             x_tensor = tf.reverse(x_tensor, [1])
-        output, state = self.gru_f(x_tensor, initial_state = tf.zeros((self.batch_sz, self.enc_units)))
+        # output, state = self.gru_f(x_tensor, initial_state = tf.zeros((self.batch_sz, self.enc_units)))
+        output, state = self.gru_f(x_tensor)
         return output, state
 
     def initialize(self, x_shape):
