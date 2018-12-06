@@ -45,7 +45,7 @@ class FullyConnectedUnits(tf.keras.Model):
     def __init__(self, config):
         super(FullyConnectedUnits, self).__init__()
         self.config = config
-        self.callables = [None for dummy_idx in config]
+        self.callables = ['C' + str(idx) for idx in range(len(self.config))]
         self.build_net()
 
     def build_net(self):
@@ -56,23 +56,23 @@ class FullyConnectedUnits(tf.keras.Model):
             if isinstance(value, str):
                 assert (value in ['tanh', 'relu', 'sigmoid']), "Can't identify activation function."
                 if value == 'tanh':
-                    self.callables[idx] = tf.tanh
+                    setattr(self, 'C' + str(idx), tf.tanh)
                 elif value == 'relu':
-                    self.callables[idx] = tf.nn.relu
+                    setattr(self, 'C' + str(idx), tf.nn.relu)
                 elif value == 'sigmoid':
-                    self.callables[idx] = tf.sigmoid
+                    setattr(self, 'C' + str(idx), tf.sigmoid)
 
             elif isinstance(value, int):
                 assert (value >= 1), "Can\'t have fewer than one neuron."
-                self.callables[idx] = tf.keras.layers.Dense(value)
+                setattr(self, 'C' + str(idx), tf.keras.layers.Dense(value))
 
             elif isinstance(value, float):
                 assert (value < 1), "Can\'t have dropouts larger than one."
-                self.callables[idx] = lambda x: tf.layers.dropout(x, rate=value)
+                setattr(self, 'C' + str(idx), lambda x: tf.layers.dropout(x, rate=value))
 
     def __call__(self, x_tensor):
-        for idx, callable in enumerate(self.callables):
-            x_tensor = callable(x_tensor)
+        for callable in self.callables:
+            x_tensor = getattr(self, callable)(x_tensor)
         return x_tensor
 
     def initialize(self, x_shape):
