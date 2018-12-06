@@ -10,6 +10,10 @@ Handles the structures of neural networks.
 import tensorflow as tf
 tf.enable_eager_execution()
 import numpy as np
+import logging
+import sys
+
+
 
 # helper functions
 def gru(units):
@@ -27,7 +31,7 @@ def gru(units):
                                recurrent_initializer='glorot_uniform')
 
 
-# UTILITY CLASSES
+# utility classes
 class FullyConnectedUnits(tf.keras.Model):
     """
     Fully Connected Units, consisting of dense layers, dropouts, and activations.
@@ -39,6 +43,7 @@ class FullyConnectedUnits(tf.keras.Model):
     """
 
     def __init__(self, config):
+        super(FullyConnectedUnits, self).__init__()
         self.config = config
         self.callables = [None for dummy_idx in config]
         self.build_net()
@@ -68,7 +73,7 @@ class FullyConnectedUnits(tf.keras.Model):
     def __call__(self, x_tensor):
         for idx, callable in enumerate(self.callables):
             x_tensor = callable(x_tensor)
-        return x
+        return x_tensor
 
     def initialize(self, x_shape):
         self.__call__(tf.zeros(x_shape))
@@ -87,27 +92,23 @@ class Encoder(tf.keras.Model):
         This is useful for bidirectional RNN.
     """
 
-    def __init__(self, vocab_size, embedding_dim=32, enc_units=128, batch_sz=64, reverse = False):
+    def __init__(self, vocab_size, embedding_dim=16, enc_units=128, batch_sz=16, reverse = False):
         super(Encoder, self).__init__()
         self.batch_sz = batch_sz
         self.enc_units = enc_units
         self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-        self.gru_b = gru(self.enc_units)
+        self.gru_f = gru(self.enc_units)
         self.reverse = reverse
 
-    def __call__(self, x_tensor, hidden):
+    def __call__(self, x_tensor):
         x_tensor = self.embedding(x_tensor)
         if self.reverse == True:
             x_tensor = tf.reverse(x_tensor, [1])
-        output, state = self.gru_b(x_tensor, initial_state = hidden)
+        output, state = self.gru_f(x_tensor, initial_state = tf.zeros((self.batch_sz, self.enc_units)))
         return output, state
 
-    def initialize_hidden_state(self):
-        return tf.zeros((self.batch_sz, self.enc_units))
-
     def initialize(self, x_shape):
-        self.__call__(tf.zeros(x_shape), self.initialize_hidden_state())
-
+        self.__call__(tf.zeros(x_shape))
 
 class BidirectionalAttention(tf.keras.Model):
     """
@@ -151,6 +152,10 @@ class Box:
         self.n_epochs = n_epochs
         self.batch_sz = batch_sz
         self.input_shape = None
+        self.loss_fn = loss_fn
+        for model in models:
+            if hasattr(model, 'batch_sz'):
+                model.batch_sz = self.batch_sz
 
     def train(self, x_tr, y_tr,
                 optimizer=tf.train.AdamOptimizer(),
@@ -165,15 +170,16 @@ class Box:
         y_tr : np.ndarry, has to match the number of samples in x_tr
         """
         # convert them into tensors
+        y_tr = np.array(y_tr, dtype=np.float32)
         x_tr = tf.convert_to_tensor(x_tr)
         y_tr = tf.convert_to_tensor(np.transpose([y_tr.flatten()]))
 
         # make them into a dataset object
         ds = tf.data.Dataset.from_tensor_slices((x_tr, y_tr)).shuffle(y_tr.shape[0])
-        ds.apply(tf.contrib.data.batch_and_drop_remainder(batch_sz))
+        ds = ds.apply(tf.contrib.data.batch_and_drop_remainder(self.batch_sz))
 
         # loop through the epochs
-        for epoch in range(n_epochs):
+        for epoch in range(self.n_epochs):
             total_loss = 0 # initialize the total loss at the beginning to be 0
 
             # loop through the batches
@@ -195,6 +201,8 @@ class Box:
                     variables += model.variables
                 gradients = tape.gradient(loss, variables)
                 optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
+                if batch % 10 == 0:
+                    print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(loss.numpy())))
 
     def predict(self, x_te):
         """

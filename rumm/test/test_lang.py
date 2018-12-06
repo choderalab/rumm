@@ -1,5 +1,6 @@
 """
 Test lang facility
+
 """
 
 # imports
@@ -19,8 +20,9 @@ def test_build_vocab(file_path):
 
     """
     df = pd.read_csv(file_path)
-    ys = df.values[:, 1]
-    xs = df.values[:, -1]
+    ys = df.values[:, -1]
+    xs = df.values[:, 1]
+
     lang_obj = lang.Lang(xs)
     x_tensor = lang.preprocessing(xs, lang_obj)
     print(x_tensor)
