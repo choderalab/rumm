@@ -2,4 +2,5 @@
 A python toolkit for bi-directional recurrent units-based molecular modelling, characterizing, and generating.
 
 ## Examples
-Examples available in google colab.
+A regression on ESOL dataset.
+https://github.com/choderalab/rumm/blob/master/rumm_example.ipynb
