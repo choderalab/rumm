@@ -1,5 +1,5 @@
 # RUMM
-A python toolkit for bi-directional recurrent units-based molecular modelling, characterizing, and generating.
+A python toolkit for bi-directional recurrent units-based molecular modelling, characterization, and generation.
 
 ## Examples
 A regression on ESOL dataset.
