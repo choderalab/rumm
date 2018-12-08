@@ -45,8 +45,6 @@ def test_single_task_training(file_path):
                    batch_sz=32)
 
     box.train(x_tensor, y_tr)
-
     box.save_weights('box')
-    # box.save('box')
 
 test_single_task_training('data/delaney-processed.csv')
