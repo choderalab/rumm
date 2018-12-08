@@ -9,7 +9,6 @@ Also used to save and restore weights.
 import tensorflow as tf
 import numpy as np
 
-
 class Box:
     """
     The wrapper of all layers in the model.
@@ -48,7 +47,7 @@ class Box:
         y_tr = np.array(y_tr, dtype=np.float32)
         x_tr = tf.convert_to_tensor(x_tr)
 
-        if y_tr.ndims == 1 or y_tr.shape[1] == 1:
+        if y_tr.ndim == 1 or y_tr.shape[1] == 1:
             y_tr = np.transpose([y_tr.flatten()])
         y_tr = tf.convert_to_tensor(y_tr)
         # make them into a dataset object
