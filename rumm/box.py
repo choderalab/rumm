@@ -5,6 +5,10 @@ Implements a black box wrapper to wrap up the models, the flow.
 Also used to save and restore weights.
 """
 
+# imports
+import tensorflow as tf
+import numpy as np
+
 
 class Box:
     """

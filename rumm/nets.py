@@ -13,8 +13,6 @@ import numpy as np
 import logging
 import sys
 
-
-
 # helper functions
 def gru(units):
     # CuDNNGRU is much faster than gru, but is only compatiable when GPU is available.
