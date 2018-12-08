@@ -89,7 +89,8 @@ class Box:
         ys_hat_all = np.array([])
         x_te = tf.convert_to_tensor(x_te)
         ds_te = tf.data.Dataset.from_tensor_slices((x_te))
-        ds_te = ds_te.apply(tf.contrib.data.batch_and_drop_remainder(self.batch_sz))
+        # ds_te = ds_te.apply(tf.contrib.data.batch_and_drop_remainder(self.batch_sz))
+        ds_te = ds_te.apply(tf.contrib.data.batch_and_drop_remainder(1))
         for xs in ds_te:
             ys_hat = self.flow(xs, self.models)
             ys_hat_all = np.concatenate([ys_hat_all, ys_hat.numpy().flatten()], axis=0)
