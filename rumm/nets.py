@@ -46,6 +46,7 @@ class FullyConnectedUnits(tf.keras.Model):
         self.config = config
         self.callables = ['C' + str(idx) for idx in range(len(self.config))]
         self.build_net()
+        self.fixed = False
 
     def build_net(self):
         """
@@ -72,10 +73,15 @@ class FullyConnectedUnits(tf.keras.Model):
     def __call__(self, x_tensor):
         for callable in self.callables:
             x_tensor = getattr(self, callable)(x_tensor)
+
         return x_tensor
 
     def initialize(self, x_shape):
         self.__call__(tf.zeros(x_shape))
+
+    @property
+    def input_shape(self):
+        return self.get_input_shape_at(0)
 
 
 class Encoder(tf.keras.Model):
@@ -131,8 +137,43 @@ class BidirectionalAttention(tf.keras.Model):
         attention_weights = tf.layers.flatten(tf.nn.softmax(self.V(score), axis=1))
         return attention_weights
 
+    @property
+    def input_shapes(self):
+        return [model.get_input_shape_at(0) for model in [self.W1_f, self.W1_b, self.W2_f, self.W2_b, self.V]]
+
     def initialize(self, eo_shape, h_shape):
         self.__call__(tf.zeros(eo_shape), tf.zeros(eo_shape), tf.zeros(h_shape), tf.zeros(h_shape))
+
+class BidirectionalWideAttention(tf.keras.Model):
+    """
+    Attention constructs the attention weights in seq2seq model.
+
+    """
+    def __init__(self, units):
+        super(BidirectionalAttention, self).__init__()
+        self.units = units
+        self.W1_f = tf.keras.layers.Dense(self.units)
+        self.W1_b = tf.keras.layers.Dense(self.units)
+        self.W2_f = tf.keras.layers.Dense(self.units)
+        self.W2_b = tf.keras.layers.Dense(self.units)
+        self.V = tf.keras.layers.Dense(1)
+
+    def __call__(self, eo_f, eo_b, h_f, h_b):
+        ht_f = tf.expand_dims(h_f, 1)
+        ht_b = tf.expand_dims(h_b, 1)
+        score_f = tf.nn.tanh(self.W1_f(eo_f) + self.W1_b(ht_f))
+        score_b = tf.nn.tanh(self.W2_f(eo_b) + self.W2_b(ht_b))
+        score = tf.concat([score_f, score_b], axis=-1)
+        attention_weights = tf.layers.flatten(tf.nn.softmax(self.V(score), axis=1))
+        return attention_weights
+
+    @property
+    def input_shapes(self):
+        return [model.get_input_shape_at(0) for model in [self.W1_f, self.W1_b, self.W2_f, self.W2_b, self.V]]
+
+    def initialize(self, eo_shape, h_shape):
+        self.__call__(tf.zeros(eo_shape), tf.zeros(eo_shape), tf.zeros(h_shape), tf.zeros(h_shape))
+
 
 class Box:
     """
@@ -151,7 +192,6 @@ class Box:
         self.models = models
         self.n_epochs = n_epochs
         self.batch_sz = batch_sz
-        self.input_shape = None
         self.loss_fn = loss_fn
         for model in models:
             if hasattr(model, 'batch_sz'):
@@ -172,8 +212,10 @@ class Box:
         # convert them into tensors
         y_tr = np.array(y_tr, dtype=np.float32)
         x_tr = tf.convert_to_tensor(x_tr)
-        y_tr = tf.convert_to_tensor(np.transpose([y_tr.flatten()]))
 
+        if y_tr.ndims == 1 or y_tr.shape[1] == 1:
+            y_tr = np.transpose([y_tr.flatten()])
+        y_tr = tf.convert_to_tensor(y_tr)
         # make them into a dataset object
         ds = tf.data.Dataset.from_tensor_slices((x_tr, y_tr)).shuffle(y_tr.shape[0])
         ds = ds.apply(tf.contrib.data.batch_and_drop_remainder(self.batch_sz))
@@ -184,10 +226,6 @@ class Box:
 
             # loop through the batches
             for (batch, (xs, ys)) in enumerate(ds):
-
-                # if the shape of the input is not defined, define it
-                if type(self.input_shape) == type(None):
-                    self.input_shape = xs.shape
 
                 # the loss at the beginning of the batch is zero
                 loss = 0
@@ -213,33 +251,31 @@ class Box:
         flow : the function that takes data and the models and output ys
         x_te : np.ndarry, the test data
         """
+
         ys_hat_all = np.array([])
         x_te = tf.convert_to_tensor(x_te)
         ds_te = tf.data.Dataset.from_tensor_slices((x_te))
+        ds_te = ds.apply(tf.contrib.data.batch_and_drop_remainder(self.batch_sz))
         for xs in ds_te:
             ys_hat = self.flow(xs, self.models)
             ys_hat_all = np.concatenate([ys_hat_all, ys_hat.numpy().flatten()], axis=0)
         return ys_hat_all
 
-    def save(self, file_path):
+
+    def save_weights(self, file_path):
         """
         Save the model. Note that it is necessary to also save the shape of the input.
         """
-        import pickle
         import os
+        os.system('rm -rf ' + file_path)
         os.system('mkdir ' + file_path)
-        pickle.dump(self.input_shape, open(file_path + '/input_shape.p', 'wb'))
-        pickle.dump(self.flow, open(file_path + '/flow.p', 'wb'))
-        for idx, model in self.models:
+        for idx, model in enumerate(self.models):
             model.save_weights('%s/%s.h5' % (file_path, idx))
+            # model.save_weights('%s/%s.h5' % (file_path, idx))
 
-    def restore(self, file_path):
+    def load_weights(self, file_path):
         """
         Restore the model.
         """
-        import pickle
-        self.input_shape = pickle.load(open(file_path + '/input_shape.p', 'wb'))
-        self.flow = pickle.load(open(file_path + '/flow.p', 'wb'))
         for idx, model in self.models:
             model.load_weights('%s/%s.h5' % (file_path, idx))
-        self.flow(tf.zeros(self.input_shape))

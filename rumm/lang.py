@@ -33,7 +33,6 @@ class Lang:
         for ch, idx in self.ch2idx.items():
             self.idx2ch[idx] = ch
 
-
 def preprocessing(smiles_array, lang, max_len = 64):
     """
     Preprocess a smiles into a continuous matrix representation.
