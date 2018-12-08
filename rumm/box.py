@@ -27,7 +27,7 @@ class Box:
         self.n_epochs = n_epochs
         self.batch_sz = batch_sz
         self.loss_fn = loss_fn
-        for model in models:
+        for model in self.models:
             if hasattr(model, 'batch_sz'):
                 model.batch_sz = self.batch_sz
 
@@ -85,6 +85,11 @@ class Box:
         flow : the function that takes data and the models and output ys
         x_te : np.ndarry, the test data
         """
+
+        # this is necessary in order to go through all the samples in test set
+        for model in self.models:
+            if hasattr(model, 'batch_sz'):
+                model.batch_sz = 1
 
         ys_hat_all = np.array([])
         x_te = tf.convert_to_tensor(x_te)
