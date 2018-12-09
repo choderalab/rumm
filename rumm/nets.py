@@ -217,7 +217,7 @@ class BidirectionalWideAttention(tf.keras.Model):
 
     """
     def __init__(self, units):
-        super(BidirectionalAttention, self).__init__()
+        super(BidirectionalWideAttention, self).__init__()
         self.units = units
         self.W1_f = tf.keras.layers.Dense(self.units)
         self.W1_b = tf.keras.layers.Dense(self.units)
