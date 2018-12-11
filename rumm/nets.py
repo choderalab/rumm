@@ -115,7 +115,7 @@ class Encoder(tf.keras.Model):
         self.__call__(tf.zeros(x_shape))
 
 class Decoder(tf.keras.Model):
-    def __init__(self, vocab_size, embedding_dim, dec_units, batch_sz):
+    def __init__(self, vocab_size, embedding_dim=16, dec_units=128, batch_sz=16):
         super(Decoder, self).__init__()
         self.batch_sz = batch_sz
         self.dec_units = dec_units
@@ -129,59 +129,39 @@ class Decoder(tf.keras.Model):
         self.V = tf.keras.layers.Dense(1)
 
     def __call__(self, x, hidden, enc_output):
-        # enc_output shape == (batch_size, max_length, hidden_size)
-
-        # hidden shape == (batch_size, hidden size)
-        # hidden_with_time_axis shape == (batch_size, 1, hidden size)
-        # we are doing this to perform addition to calculate the score
         hidden_with_time_axis = tf.expand_dims(hidden, 1)
-
-        # score shape == (batch_size, max_length, hidden_size)
         score = tf.nn.tanh(self.W1(enc_output) + self.W2(hidden_with_time_axis))
-
-        # attention_weights shape == (batch_size, max_length, 1)
-        # we get 1 at the last axis because we are applying score to self.V
         attention_weights = tf.nn.softmax(self.V(score), axis=1)
-
-        # context_vector shape after sum == (batch_size, hidden_size)
         context_vector = attention_weights * enc_output
         context_vector = tf.reduce_sum(context_vector, axis=1)
-
-        # x shape after passing through embedding == (batch_size, 1, embedding_dim)
         x = self.embedding(x)
-
-        # x shape after concatenation == (batch_size, 1, embedding_dim + hidden_size)
         x = tf.concat([tf.expand_dims(context_vector, 1), x], axis=-1)
-
-        # passing the concatenated vector to the GRU
         output, state = self.gru(x)
-
-        # output shape == (batch_size * 1, hidden_size)
         output = tf.reshape(output, (-1, output.shape[2]))
-
-        # output shape == (batch_size * 1, vocab)
         x = self.fc(output)
-
         return x, state, attention_weights
 
     def initialize_hidden_state(self):
         return tf.zeros((self.batch_sz, self.dec_units))
 
 class AttentionDecoder(tf.keras.Model):
-    def __init__(self, vocab_size, embedding_dim, dec_units, batch_sz):
+    def __init__(self, vocab_size, embedding_dim=16, dec_units=128, batch_sz=16):
         self.vocab_size = vocab_size
         self.embedding_dim = embedding_dim
         self.dec_units = dec_units
         self.batch_sz = batch_sz
         self.fc = tf.keras.layers.Dense(vocab_size)
 
-    def __call__(self, attention, x):
+    def __call__(self, x, hidden, attention):
         x = self.embedding(x)
         x = tf.concat([tf.expand_dims(attention, 1), x], axis=-1)
         x, state =  self.gru(x)
         x = tf.reshape(x, (-1, x.shape[2]))
         x = self.fc(x)
         return x
+
+    def initialize_hidden_state(self):
+        return tf.zeros((self.batch_sz, self.dec_units))
 
 class BidirectionalAttention(tf.keras.Model):
     """

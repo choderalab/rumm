@@ -19,7 +19,14 @@ class MixDistributionLayer(tf.keras.Model):
     """
     MixDistributionLayer takes the input and returns a Gaussian mixture distribution.
 
+    Parameters
+    ----------
+    n_components : number of distributions to mix
+    dim : dimension of inputs and distributions
 
+    Returns
+    -------
+    gm : Gaussian Mixture model
     """
     def __init__(self, n_components, dim, probs = None, return_params = False):
         super(MixDistributionLayer, self).__init__()

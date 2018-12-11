@@ -27,8 +27,10 @@ class Lang:
 
         self.vocab = sorted(self.vocab)
 
+        self.ch2idx['0'] = 0
+
         for idx, ch in enumerate(self.vocab):
-            self.ch2idx[ch] = idx
+            self.ch2idx[ch] = idx + 1
 
         for ch, idx in self.ch2idx.items():
             self.idx2ch[idx] = ch
