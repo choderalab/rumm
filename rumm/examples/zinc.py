@@ -45,7 +45,7 @@ x_tr = lang.preprocessing(x_tr, lang_obj)
 enc_f = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False)
 enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True)
 attention = nets.BidirectionalAttention(128)
-fcuk_props = nets.FullyConnectedUnits([256, 'tanh', 0.25, 256, 'tanh', 0.10, ])
+fcuk_props = nets.FullyConnectedUnits([256, 'tanh', 0.25, 256, 'tanh', 0.10, 9])
 decoder = nets.AttentionDecoder(vocab_size=vocab_size)
 
 # convert to tensor
@@ -65,11 +65,14 @@ def seq_loss(y, y_hat):
     loss_ = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=y_hat) * mask
     return tf.reduce_mean(loss_)
 
+
+loss_scale_0 = 0.0
+loss_scale_1 = 0.0
+
 # train it!
 # loop through the epochs
 for epoch in range(500):
     total_loss = 0 # initialize the total loss at the beginning to be 0
-
     # loop through the batches
     for (batch, (xs, ys)) in enumerate(ds):
         # the loss at the beginning of the batch is zero
@@ -81,20 +84,28 @@ for epoch in range(500):
             eo_f, h_f = enc_f(xs)
             eo_b, h_b = enc_b(xs)
             attention_weights = attention(eo_f, eo_b, h_f, h_b)
-            ys_hat = fcuk(attention_weights)
-            loss += tf.losses.mean_squared_error(ys_hat, ys)
+            ys_hat = fcuk_props(attention_weights)
+            loss0 = tf.losses.mean_squared_error(ys_hat, ys)
 
-            dec_input = tf.expand_dims([lang.ch2idx['G']] * BATCH_SZ, 1)
+            if loss_scale_0 == 0.0:
+                loss_scale_0 = loss0
+
+            loss += tf.div(loss0, loss_scale_0)
+
+            dec_input = tf.expand_dims([lang_obj.ch2idx['G']] * BATCH_SZ, 1)
             dec_hidden = decoder.initialize_hidden_state()
+            loss1 = 0
             for t in range(xs.shape[1]):
-                ch_hat, dec_hidden, _ = decoder(dec_input, dec_hidden, attention)
-                loss += seq_loss(xs[:, t], ch_hat)
+                ch_hat, dec_hidden = decoder(dec_input, dec_hidden, attention_weights)
+                loss1 += seq_loss(xs[:, t], ch_hat)
                 dec_input = tf.expand_dims(xs[:, t], 1)
+            if loss_scale_1 == 0.0:
+                loss_scale_1 = loss1
+            loss += tf.div(loss1, loss_scale_1)
 
         total_loss += loss
-        variables = []
-        for model in self.models:
-            variables += model.variables
+        variables = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables + decoder.variables
+
         gradients = tape.gradient(loss, variables)
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
         if batch % 10 == 0:

@@ -148,18 +148,19 @@ class AttentionDecoder(tf.keras.Model):
     def __init__(self, vocab_size, embedding_dim=16, dec_units=128, batch_sz=16):
         super(AttentionDecoder, self).__init__()
         self.vocab_size = vocab_size
-        self.embedding_dim = embedding_dim
+        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
         self.dec_units = dec_units
         self.batch_sz = batch_sz
         self.fc = tf.keras.layers.Dense(vocab_size)
+        self.gru = nets.gru(self.dec_units)
 
-    def __call__(self, x, hidden, attention):
+    def __call__(self, x, hidden, attention_weights):
         x = self.embedding(x)
-        x = tf.concat([tf.expand_dims(attention, 1), x], axis=-1)
+        x = tf.concat([tf.expand_dims(attention_weights, 1), x], axis=-1)
         x, state =  self.gru(x)
         x = tf.reshape(x, (-1, x.shape[2]))
         x = self.fc(x)
-        return x
+        return x, state
 
     def initialize_hidden_state(self):
         return tf.zeros((self.batch_sz, self.dec_units))
