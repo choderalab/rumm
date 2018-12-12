@@ -146,6 +146,7 @@ class Decoder(tf.keras.Model):
 
 class AttentionDecoder(tf.keras.Model):
     def __init__(self, vocab_size, embedding_dim=16, dec_units=128, batch_sz=16):
+        super(AttentionDecoder, self).__init__()
         self.vocab_size = vocab_size
         self.embedding_dim = embedding_dim
         self.dec_units = dec_units

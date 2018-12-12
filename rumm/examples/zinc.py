@@ -83,14 +83,13 @@ for epoch in range(500):
             attention_weights = attention(eo_f, eo_b, h_f, h_b)
             ys_hat = fcuk(attention_weights)
             loss += tf.losses.mean_squared_error(ys_hat, ys)
-            dec_input = tf.expand_dims([lang.ch2idx['G']] * BATCH_SZ, 1)
 
+            dec_input = tf.expand_dims([lang.ch2idx['G']] * BATCH_SZ, 1)
             dec_hidden = decoder.initialize_hidden_state()
             for t in range(xs.shape[1]):
                 ch_hat, dec_hidden, _ = decoder(dec_input, dec_hidden, attention)
                 loss += seq_loss(xs[:, t], ch_hat)
                 dec_input = tf.expand_dims(xs[:, t], 1)
-
 
         total_loss += loss
         variables = []

@@ -25,6 +25,7 @@ class Lang:
         for smiles in self.lang:
             self.vocab.update(list(smiles))
 
+        self.vocab.update(['G'])
         self.vocab = sorted(self.vocab)
 
         self.ch2idx['0'] = 0
