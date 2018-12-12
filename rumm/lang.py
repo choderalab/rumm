@@ -33,8 +33,8 @@ class Lang:
 
         # put 'G', 'E', and '0' in the vocabulary
         # signifying 'GO', 'END', and padding.
-        self.ch2idx['G'] = idx + 2
-        self.ch2idx['E'] = idx + 3
+        # self.ch2idx['G'] = idx + 2
+        # self.ch2idx['E'] = idx + 3
         self.ch2idx['0'] = 0
 
         # build the mapping in both way
