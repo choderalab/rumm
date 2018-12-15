@@ -11,10 +11,10 @@ import nets
 import bayesian
 
 # constants
-BATCH_SZ = 64
+BATCH_SZ = 128
 
 # load the dataset
-zinc_df = pd.read_csv('6_prop.xls', sep='\t')
+zinc_df = pd.read_csv('../../../6_prop.xls', sep='\t')
 
 # shuffle it, and conduct training-test split
 zinc_df = zinc_df.sample(zinc_df.shape[0])
@@ -31,23 +31,23 @@ x_te = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, x_te)
 scaler = StandardScaler(copy=False)
 y_tr = scaler.fit_transform(y_tr)
 y_te = scaler.transform(y_te)
-pickle.dump(scaler, 'scaler.p')
+pickle.dump(scaler, open('scaler.p', 'wb'))
 
 # save the dataset for later use
-np.save(y_tr, 'y_tr')
-np.save(x_tr, 'x_tr')
-np.save(y_te, 'y_te')
-np.save(x_te, 'x_te')
+np.save('y_tr', y_tr)
+np.save('x_tr', x_tr)
+np.save('y_te', y_te)
+np.save('x_te', x_te)
 
 # create the language object and map it to strings
 lang_obj = lang.Lang(list(x_tr) + list(x_te))
-vocab_size = len(lang_obj.ch2idx)
+vocab_size = len(lang_obj.idx2ch) + 1
 x_tr = lang.preprocessing(x_tr, lang_obj)
 
 # define models
 enc_f = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False)
 enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True)
-attention = nets.BidirectionalAttention(128)
+attention = nets.BidirectionalWideAttention(128)
 fcuk = nets.FullyConnectedUnits([512, 'tanh', 0.30, 512, 'tanh', 0.30, 512, 'tanh', 0.25])
 fcuk_props = nets.FullyConnectedUnits([9])
 decoder = nets.AttentionDecoder(vocab_size=vocab_size)
@@ -109,16 +109,16 @@ for epoch in range(1000):
             loss += tf.div(loss1, loss_scale_1)
 
         total_loss += loss
-        variables = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables + decoder.variables
+        variables = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables + decoder.variables + fcuk.variables
 
         gradients = tape.gradient(loss, variables)
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
         if batch % 10 == 0:
             print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(loss.numpy())))
 
-        fcuk.save_weights('./weights/fcuk.h5')
-        enc_f.save_weights('./weights/enc_f.h5')
-        enc_b.save_weights('./weights/enc_b.h5')
-        attention.save_weights('./weights/attention_weights.h5')
-        fcuk_props.save_weights('./weights/fcuk_props.h5')
-        decoder.save_weights('./weights/decoder.h5')
+        fcuk.save_weights('./fcuk.h5')
+        enc_f.save_weights('./enc_f.h5')
+        enc_b.save_weights('./enc_b.h5')
+        attention.save_weights('./attention_weights.h5')
+        fcuk_props.save_weights('./fcuk_props.h5')
+        decoder.save_weights('./decoder.h5')
