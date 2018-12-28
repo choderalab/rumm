@@ -5,7 +5,7 @@ tf.enable_eager_execution()
 from sklearn.preprocessing import StandardScaler
 import pickle
 import sys
-sys.path.append('..')
+sys.path.append('../rumm')
 import lang
 import nets
 import bayesian
@@ -120,8 +120,10 @@ for epoch in range(1000):
         loss0_var = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables
         loss1_var = decoder.variables
         lt = w0_task * loss0 + w1_task * loss1
-        gw0 = w0_task * np.norm(tape.gradient(loss0, loss0_var))
-        gw1 = w1_task * np.norm(tape.gradient(loss1, loss1_var))
+        gw0 = w0_task * np.linalg.norm(tape.gradient(loss0,
+          loss0_var).values.numpy())
+        gw1 = w1_task * np.linalg.norm(tape.gradient(loss1,
+          loss1_var).values.numpy())
         gw_bar = 0.5 * (gw0 + gw1)
         l0_tilde = np.true_divide(loss0, loss0_int)
         l1_tilde = np.true_divide(loss1, loss1_int)
