@@ -102,12 +102,19 @@ def seq_loss(y, y_hat):
     return tf.reduce_mean(loss_)
 
 
-loss_scale_0 = 0.0
-loss_scale_1 = 0.0
 
 # train it!
 # loop through the epochs
+alpha = 1.5
 for epoch in range(1000):
+    # placeholders for the initial losses
+    loss0_int = 0.0
+    loss1_int = 0.0
+
+    # for each epoch, initialize the weights for two tasks
+    w0_task = tf.Variable(1.0, dtype=tf.float32)
+    w1_task = tf.Variable(1.0, dtype=tf.float32)
+
     total_loss = 0 # initialize the total loss at the beginning to be 0
     # loop through the batches
     for (batch, (xs, ys)) in enumerate(ds):
@@ -123,11 +130,8 @@ for epoch in range(1000):
             attention_weights = fcuk(attention_weights)
             ys_hat = fcuk_props(attention_weights)
             loss0 = tf.losses.mean_squared_error(ys_hat, ys)
-
-            if loss_scale_0 == 0.0:
-                loss_scale_0 = loss0
-
-            loss += tf.div(loss0, loss_scale_0)
+            if loss0_int == 0.0:
+                loss0_int = loss0
 
             dec_input = tf.expand_dims([lang_obj.ch2idx['G']] * BATCH_SZ, 1)
             dec_hidden = decoder.initialize_hidden_state()
@@ -136,17 +140,38 @@ for epoch in range(1000):
                 ch_hat, dec_hidden = decoder(dec_input, dec_hidden, attention_weights)
                 loss1 += seq_loss(xs[:, t], ch_hat)
                 dec_input = tf.expand_dims(xs[:, t], 1)
-            if loss_scale_1 == 0.0:
-                loss_scale_1 = loss1
-            loss += tf.div(loss1, loss_scale_1)
+            if loss1_int == 0.0:
+                loss1_int = loss1
 
-        total_loss += loss
+
+        # start grad norm
+        loss0_var = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables
+        loss1_var = decoder.variables
+        lt = w0_task * loss0 + w1_task * loss1
+        gw0 = w0_task * np.norm(tape.gradient(loss0, loss0_var))
+        gw1 = w1_task * np.norm(tape.gradient(loss1, loss1_var))
+        gw_bar = 0.5 * (gw0 + gw1)
+        l0_tilde = np.true_divide(loss0, loss0_int)
+        l1_tilde = np.true_divide(loss1, loss1_int)
+        l_tilde_bar = 0.5 * (l0_tilde + l1_tilde)
+        r0 = np.true_divide(l0_tilde, l_tilde_bar)
+        r1 = np.true_divide(t1_tilde, l_tilde_bar)
+
+        l_grad = np.abs(gw0 - gw_bar * np.power(r0, alpha)) +\
+                 np.abs(gw1 - gw_bar * np.power(r1, alpha))
+
+        delta_l_grad_0 = tape.gradient(l_grad, w0_task)
+        delta_l_grad_1 = tape.gradient(l_grad, w1_task)
+
+        optimizer.apply_gradients(zip(delta_l_grad_0, [w0_task]))
+        optimizer.apply_gradients(zip(delta_l_grad_1, [w1_task]))
+
         variables = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables + decoder.variables + fcuk.variables
 
-        gradients = tape.gradient(loss, variables)
+        gradients = tape.gradient(l_grad, variables)
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
         if batch % 10 == 0:
-            print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(loss.numpy())))
+            print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(l_grad.numpy())))
 
         fcuk.save_weights('./fcuk.h5')
         enc_f.save_weights('./enc_f.h5')
