@@ -13,7 +13,6 @@ import bayesian
 # constants
 BATCH_SZ = 4096
 
-'''
 # load the dataset
 zinc_df = pd.read_csv('../../../6_prop.xls', sep='\t')
 
@@ -41,12 +40,6 @@ np.save('y_tr', y_tr)
 np.save('x_tr', x_tr)
 np.save('y_te', y_te)
 np.save('x_te', x_te)
-'''
-
-x_tr = np.load('x_tr.npy')
-x_te = np.load('x_te.npy')
-y_tr = np.load('y_tr.npy')
-y_te = np.load('y_te.npy')
 
 # create the language object and map it to strings
 lang_obj = lang.Lang(list(x_tr) + list(x_te))
@@ -65,28 +58,6 @@ decoder = nets.AttentionDecoder(vocab_size=vocab_size)
 # convert to tensor
 x_tr = tf.convert_to_tensor(x_tr)
 y_tr = tf.convert_to_tensor(y_tr)
-
-# initialize
-xs = tf.zeros((BATCH_SZ, 64))
-eo_f, h_f = enc_f(xs)
-eo_b, h_b = enc_b(xs)
-attention_weights = attention(eo_f, eo_b, h_f, h_b)
-attention_weights = fcuk(attention_weights)
-ys_hat = fcuk_props(attention_weights)
-dec_input = tf.expand_dims([lang_obj.ch2idx['G']] * BATCH_SZ, 1)
-dec_hidden = decoder.initialize_hidden_state()
-for t in range(xs.shape[1]):
-    ch_hat, dec_hidden = decoder(dec_input, dec_hidden, attention_weights)
-    dec_input = tf.expand_dims(xs[:, t], 1)
-
-# load weights
-fcuk.load_weights('./fcuk.h5')
-enc_f.load_weights('./enc_f.h5')
-enc_b.load_weights('./enc_b.h5')
-attention.load_weights('./attention_weights.h5')
-fcuk_props.load_weights('./fcuk_props.h5')
-decoder.load_weights('./decoder.h5')
-
 
 # make them into a dataset object
 ds = tf.data.Dataset.from_tensor_slices((x_tr, y_tr)).shuffle(y_tr.shape[0])
