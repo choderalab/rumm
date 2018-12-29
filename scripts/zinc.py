@@ -115,7 +115,6 @@ for epoch in range(1000):
             if loss1_int == 0.0:
                 loss1_int = loss1
 
-        with tf.GradientTape(persistent=True) as param_tape:
             # start grad norm
             loss0_var = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables
             loss1_var = decoder.variables
@@ -131,11 +130,11 @@ for epoch in range(1000):
             r0 = tf.div(l0_tilde, l_tilde_bar)
             r1 = tf.div(l1_tilde, l_tilde_bar)
 
-            l_grad = tf.math.abs(gw0 - gw_bar * tf.math.pow(r0, alpha)) +\
-                     tf.math.abs(gw1 - gw_bar * tf.math.pow(r1, alpha))
+            l_grad = tf.math.abs(gw0 - tf.stop_gradient(gw_bar * tf.math.pow(r0, alpha))) +\
+                     tf.math.abs(gw1 - tf.stop_gradient(gw_bar * tf.math.pow(r1, alpha)))
 
-        delta_l_grad_0 = param_tape.gradient(l_grad, w0_task)
-        delta_l_grad_1 = param_tape.gradient(l_grad, w1_task)
+        delta_l_grad_0 = tape.gradient(l_grad, w0_task)
+        delta_l_grad_1 = tape.gradient(l_grad, w1_task)
         optimizer.apply_gradients(zip([delta_l_grad_0], [w0_task]))
         optimizer.apply_gradients(zip([delta_l_grad_1], [w1_task]))
 
