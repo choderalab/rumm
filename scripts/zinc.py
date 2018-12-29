@@ -95,7 +95,7 @@ for epoch in range(1000):
 
         # TODO
         # one training batch
-        with tf.GradientTape() as tape: # for descent
+        with tf.GradientTape(persistent=True) as tape: # for descent
             eo_f, h_f = enc_f(xs)
             eo_b, h_b = enc_b(xs)
             attention_weights = attention(eo_f, eo_b, h_f, h_b)
@@ -121,24 +121,26 @@ for epoch in range(1000):
         loss1_var = decoder.variables
         lt = w0_task * loss0 + w1_task * loss1
         gw0 = w0_task * np.linalg.norm(tape.gradient(loss0,
-          loss0_var).values.numpy())
+          loss0_var)[0].values.numpy())
         gw1 = w1_task * np.linalg.norm(tape.gradient(loss1,
-          loss1_var).values.numpy())
+          loss1_var)[0].values.numpy())
         gw_bar = 0.5 * (gw0 + gw1)
         l0_tilde = np.true_divide(loss0, loss0_int)
         l1_tilde = np.true_divide(loss1, loss1_int)
         l_tilde_bar = 0.5 * (l0_tilde + l1_tilde)
         r0 = np.true_divide(l0_tilde, l_tilde_bar)
-        r1 = np.true_divide(t1_tilde, l_tilde_bar)
+        r1 = np.true_divide(l1_tilde, l_tilde_bar)
 
         l_grad = np.abs(gw0 - gw_bar * np.power(r0, alpha)) +\
                  np.abs(gw1 - gw_bar * np.power(r1, alpha))
 
+        l_grad = tf.convert_to_tensor(l_grad)
         delta_l_grad_0 = tape.gradient(l_grad, w0_task)
         delta_l_grad_1 = tape.gradient(l_grad, w1_task)
-
-        optimizer.apply_gradients(zip(delta_l_grad_0, [w0_task]))
-        optimizer.apply_gradients(zip(delta_l_grad_1, [w1_task]))
+        w0_task -= delta_l_grad_0[0].values.numpy()
+        w1_task -= delta_l_grad_1[0].values.numpy()
+        # optimizer.apply_gradients(zip([delta_l_grad_0], [w0_task]))
+        # optimizer.apply_gradients(zip([delta_l_grad_1], [w1_task]))
 
         variables = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables + decoder.variables + fcuk.variables
 
