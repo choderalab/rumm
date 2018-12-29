@@ -120,27 +120,24 @@ for epoch in range(1000):
         loss0_var = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables
         loss1_var = decoder.variables
         lt = w0_task * loss0 + w1_task * loss1
-        gw0 = w0_task * np.linalg.norm(tape.gradient(loss0,
-          loss0_var)[0].values.numpy())
-        gw1 = w1_task * np.linalg.norm(tape.gradient(loss1,
-          loss1_var)[0].values.numpy())
+        gw0 = w0_task * tf.norm(tape.gradient(loss0,
+          loss0_var)[0].values)
+        gw1 = w1_task * tf.norm(tape.gradient(loss1,
+          loss1_var)[0].values)
         gw_bar = 0.5 * (gw0 + gw1)
-        l0_tilde = np.true_divide(loss0, loss0_int)
-        l1_tilde = np.true_divide(loss1, loss1_int)
+        l0_tilde = tf.div(loss0, loss0_int)
+        l1_tilde = tf.div(loss1, loss1_int)
         l_tilde_bar = 0.5 * (l0_tilde + l1_tilde)
-        r0 = np.true_divide(l0_tilde, l_tilde_bar)
-        r1 = np.true_divide(l1_tilde, l_tilde_bar)
+        r0 = tf.div(l0_tilde, l_tilde_bar)
+        r1 = tf.div(l1_tilde, l_tilde_bar)
 
-        l_grad = np.abs(gw0 - gw_bar * np.power(r0, alpha)) +\
-                 np.abs(gw1 - gw_bar * np.power(r1, alpha))
+        l_grad = tf.math.abs(gw0 - gw_bar * tf.math.pow(r0, alpha)) +\
+                 tf.math.abs(gw1 - gw_bar * tf.math.pow(r1, alpha))
 
-        l_grad = tf.convert_to_tensor(l_grad)
         delta_l_grad_0 = tape.gradient(l_grad, w0_task)
         delta_l_grad_1 = tape.gradient(l_grad, w1_task)
-        w0_task -= delta_l_grad_0[0].values.numpy()
-        w1_task -= delta_l_grad_1[0].values.numpy()
-        # optimizer.apply_gradients(zip([delta_l_grad_0], [w0_task]))
-        # optimizer.apply_gradients(zip([delta_l_grad_1], [w1_task]))
+        optimizer.apply_gradients(zip([delta_l_grad_0], [w0_task]))
+        optimizer.apply_gradients(zip([delta_l_grad_1], [w1_task]))
 
         variables = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables + decoder.variables + fcuk.variables
 
