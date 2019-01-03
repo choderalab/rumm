@@ -152,7 +152,7 @@ class AttentionDecoder(tf.keras.Model):
         self.dec_units = dec_units
         self.batch_sz = batch_sz
         self.fc = tf.keras.layers.Dense(vocab_size)
-        self.gru = nets.gru(self.dec_units)
+        self.gru = gru(self.dec_units)
 
     def __call__(self, x, hidden, attention_weights):
         x = self.embedding(x)
