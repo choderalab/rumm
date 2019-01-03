@@ -72,31 +72,24 @@ def seq_loss(y, y_hat):
     loss_ = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=y_hat) * mask
     return tf.reduce_mean(loss_)
 
-def grad_norm(gradients):
-    norm = 0
-    for gradient in gradients:
-        try:
-            norm += tf.math.square(tf.norm(gradient))
-        except:
-            norm += tf.math.square(tf.norm(gradient.value))
-    return tf.sqrt(norm)
-
-
-
 # train it!
 # loop through the epochs
 
-# loop through the epochs
-
-alpha = 1.0 # specify the learning rate for grad norm
+alpha = 3.0 # specify the learning rate for grad norm
 for epoch in range(1000):
+    # specify different alpha
+    if epoch <= 10:
+        alpha = 0.2
+    elif epoch <= 30:
+        alpha = 1.0
+    elif epoch <= 100:
+        alpha = 1.5
+    else:
+        alpha = 2.5
+
     # placeholders for the initial losses
     loss0_int = 0.0
     loss1_int = 0.0
-
-    # for each epoch, initialize the weights for two tasks
-    w0_task = tf.Variable(1.0, dtype=tf.float32)
-    w1_task = tf.Variable(1.0, dtype=tf.float32)
 
     total_loss = 0 # initialize the total loss at the beginning to be 0
     # loop through the batches
@@ -114,39 +107,45 @@ for epoch in range(1000):
             attention_weights = fcuk(attention_weights)
             ys_hat = fcuk_props(attention_weights)
             loss0 = tf.losses.mean_squared_error(ys_hat, ys)
-            if loss0_int == 0.0:
-                loss0_int = loss0
             dec_input = tf.expand_dims([lang_obj.ch2idx['G']] * BATCH_SZ, 1)
             dec_hidden = decoder.initialize_hidden_state()
-            loss1 = 0
+            loss1 = 0.0
             for t in range(xs.shape[1]):
                 ch_hat, dec_hidden = decoder(dec_input, dec_hidden, attention_weights)
-                loss1 += seq_loss(xs[:, t], ch_hat)
+                loss1 += tf.div(seq_loss(xs[:, t], ch_hat), 100.0)
                 dec_input = tf.expand_dims(xs[:, t], 1)
-            if loss1_int == 0.0:
-                loss1_int = loss1
 
+            if batch == 0:
+                loss0_int = loss0
+                loss1_int = loss1
             lt = w0_task * loss0 + w1_task * loss1
 
         # start grad norm
-        loss0_var = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables
-        loss1_var = decoder.variables
-        variables = loss0_var + loss1_var
+        variables = enc_f.variables + enc_b.variables +\
+                    attention.variables + fcuk_props.variables + decoder.variables
 
-        gw_grad_0 = tape.gradient(loss0, loss0_var)
-        gw_grad_1 = tape.gradient(loss1, loss1_var)
+        gw_grad_0 = tape.gradient(loss0, attention_weights)
+        gw_grad_1 = tape.gradient(loss1, attention_weights)
         gradients = tape.gradient(lt, variables)
 
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
 
         if batch % 10 == 0:
             print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
+            print(loss0)
+            print(loss1)
+            fcuk.save_weights('./fcuk.h5')
+            enc_f.save_weights('./enc_f.h5')
+            enc_b.save_weights('./enc_b.h5')
+            attention.save_weights('./attention_weights.h5')
+            fcuk_props.save_weights('./fcuk_props.h5')
+            decoder.save_weights('./decoder.h5')
 
         with tf.GradientTape(persistent=True, watch_accessed_variables=False) as tape1:
             tape1.watch(w0_task)
             tape1.watch(w1_task)
-            gw0 = w0_task * grad_norm(gw_grad_0)
-            gw1 = w1_task * grad_norm(gw_grad_1)
+            gw0 = w0_task * tf.norm(gw_grad_0)
+            gw1 = w1_task * tf.norm(gw_grad_1)
             gw_bar = 0.5 * (gw0 + gw1)
             l0_tilde = tf.div(loss0, loss0_int)
             l1_tilde = tf.div(loss1, loss1_int)
@@ -157,14 +156,10 @@ for epoch in range(1000):
             l_grad = tf.math.abs(gw0 - tf.stop_gradient(gw_bar * tf.math.pow(r0, alpha))) +\
                      tf.math.abs(gw1 - tf.stop_gradient(gw_bar * tf.math.pow(r1, alpha)))
 
-        delta_l_grad_0 = tape1.gradient(gw0, w0_task)
-        delta_l_grad_1 = tape1.gradient(gw1, w1_task)
+        delta_l_grad_0 = tape1.gradient(l_grad, w0_task)
+        delta_l_grad_1 = tape1.gradient(l_grad, w1_task)
         optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
         optimizer.apply_gradients([(delta_l_grad_1, w1_task)])
-
-        fcuk.save_weights('./fcuk.h5')
-        enc_f.save_weights('./enc_f.h5')
-        enc_b.save_weights('./enc_b.h5')
-        attention.save_weights('./attention_weights.h5')
-        fcuk_props.save_weights('./fcuk_props.h5')
-        decoder.save_weights('./decoder.h5')
+        w_total = w0_task + w1_task
+        w0_task.assign(w0_task * tf.div(2.0, w_total))
+        w1_task.assign(w1_task * tf.div(2.0, w_total))
