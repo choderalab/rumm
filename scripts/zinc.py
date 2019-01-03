@@ -72,6 +72,15 @@ def seq_loss(y, y_hat):
     loss_ = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=y_hat) * mask
     return tf.reduce_mean(loss_)
 
+def grad_norm(gradients):
+    norm = 0
+    for gradient in gradients:
+        try:
+            norm += tf.math.square(tf.norm(gradient))
+        except:
+            norm += tf.math.square(tf.norm(gradient.value))
+    return tf.sqrt(norm)
+
 
 
 # train it!
@@ -131,7 +140,7 @@ for epoch in range(1000):
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
 
         if batch % 10 == 0:
-            print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(l_grad.numpy())))
+            print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
 
         with tf.GradientTape(persistent=True, watch_accessed_variables=False) as tape1:
             tape1.watch(w0_task)
