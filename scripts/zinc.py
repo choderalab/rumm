@@ -96,34 +96,36 @@ for epoch in range(1000):
         # TODO
         # one training batch
         with tf.GradientTape(persistent=True) as tape: # for descent
-            with tf.GradientTape(persistent=True) as subtape:
-                eo_f, h_f = enc_f(xs)
-                eo_b, h_b = enc_b(xs)
-                attention_weights = attention(eo_f, eo_b, h_f, h_b)
-                attention_weights = fcuk(attention_weights)
-                ys_hat = fcuk_props(attention_weights)
-                loss0 = tf.losses.mean_squared_error(ys_hat, ys)
-                if loss0_int == 0.0:
-                    loss0_int = loss0
-
-                dec_input = tf.expand_dims([lang_obj.ch2idx['G']] * BATCH_SZ, 1)
-                dec_hidden = decoder.initialize_hidden_state()
-                loss1 = 0
-                for t in range(xs.shape[1]):
-                    ch_hat, dec_hidden = decoder(dec_input, dec_hidden, attention_weights)
-                    loss1 += seq_loss(xs[:, t], ch_hat)
-                    dec_input = tf.expand_dims(xs[:, t], 1)
-                if loss1_int == 0.0:
-                    loss1_int = loss1
+            # training
+            eo_f, h_f = enc_f(xs)
+            eo_b, h_b = enc_b(xs)
+            attention_weights = attention(eo_f, eo_b, h_f, h_b)
+            attention_weights = fcuk(attention_weights)
+            ys_hat = fcuk_props(attention_weights)
+            loss0 = tf.losses.mean_squared_error(ys_hat, ys)
+            if loss0_int == 0.0:
+                loss0_int = loss0
+            dec_input = tf.expand_dims([lang_obj.ch2idx['G']] * BATCH_SZ, 1)
+            dec_hidden = decoder.initialize_hidden_state()
+            loss1 = 0
+            for t in range(xs.shape[1]):
+                ch_hat, dec_hidden = decoder(dec_input, dec_hidden, attention_weights)
+                loss1 += seq_loss(xs[:, t], ch_hat)
+                dec_input = tf.expand_dims(xs[:, t], 1)
+            if loss1_int == 0.0:
+                loss1_int = loss1
 
             # start grad norm
             loss0_var = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables
             loss1_var = decoder.variables
+            variables = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables + decoder.variables + fcuk.variables
+
             lt = w0_task * loss0 + w1_task * loss1
-            gw0 = w0_task * tf.norm(subtape.gradient(loss0,
+            gw0 = w0_task * tf.norm(tape.gradient(loss0,
               loss0_var)[0].values)
-            gw1 = w1_task * tf.norm(subtape.gradient(loss1,
+            gw1 = w1_task * tf.norm(tape.gradient(loss1,
               loss1_var)[0].values)
+
             gw_bar = 0.5 * (gw0 + gw1)
             l0_tilde = tf.div(loss0, loss0_int)
             l1_tilde = tf.div(loss1, loss1_int)
@@ -139,9 +141,7 @@ for epoch in range(1000):
         optimizer.apply_gradients(zip([delta_l_grad_0], [w0_task]))
         optimizer.apply_gradients(zip([delta_l_grad_1], [w1_task]))
 
-        variables = enc_f.variables + enc_b.variables + attention.variables + fcuk_props.variables + decoder.variables + fcuk.variables
-
-        gradients = tape.gradient(l_grad, variables)
+        gradients = tape.gradient(lt, variables)
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
         if batch % 10 == 0:
             print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(l_grad.numpy())))
