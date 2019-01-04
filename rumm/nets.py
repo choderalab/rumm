@@ -52,7 +52,7 @@ class FullyConnectedUnits(tf.keras.Model):
         """
         for idx, value in enumerate(self.config):
             if isinstance(value, str):
-                assert (value in ['tanh', 'relu', 'sigmoid']), "Can't identify activation function."
+                assert (value in ['tanh', 'relu', 'sigmoid', 'leaky_relu']), "Can't identify activation function."
                 if value == 'tanh':
                     setattr(self, 'C' + str(idx), tf.tanh)
                 elif value == 'relu':
