@@ -59,6 +59,8 @@ class FullyConnectedUnits(tf.keras.Model):
                     setattr(self, 'C' + str(idx), tf.nn.relu)
                 elif value == 'sigmoid':
                     setattr(self, 'C' + str(idx), tf.sigmoid)
+                elif value == 'leaky_relu':
+                    setattr(self, 'C' + str(idx), tf.nn.leaky_relu)
 
             elif isinstance(value, int):
                 assert (value >= 1), "Can\'t have fewer than one neuron."
