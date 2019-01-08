@@ -8,6 +8,7 @@ from rdkit import Chem
 from rdkit.Chem.Fingerprints import FingerprintMols
 from rdkit.Chem import MACCSkeys
 import pandas as pd
+import swifter
 
 def smiles_to_fp(smiles):
     """
@@ -24,18 +25,11 @@ def smiles_to_fp(smiles):
     mol = Chem.MolFromSmiles(smiles)
     fp1 = MACCSkeys.GenMACCSKeys(mol)
     fp1 = np.fromstring(fp1.ToBitString(), 'int8') - 48
+    fp1 = fp1.tolist()
     return fp1
-
-def augment_df(df, smiles_idx = 0):
-    new_df = pd.DataFrame(columns = range(178))
-    for idx in range(df.shape[0]):
-        print(idx)
-        old_line = df.loc[idx].values.tolist()
-        smiles = old_line[smiles_idx]
-        new_line = old_line + smiles_to_fp(smiles).tolist()
-        new_df.loc[idx] = new_line
-    return new_df
 
 if __name__ = '__main__':
     import sys
     file_path = sys.argv[1]
+    df = pd.read_csv(file_path, sep='\t')
+    df[range(166)] = df.swifter.apply(smiles_to_fp)
