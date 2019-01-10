@@ -59,9 +59,10 @@ decoder = nets.DeepAttentionDecoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, 
 # convert to tensor
 x_tr = tf.convert_to_tensor(x_tr)
 y_tr = tf.convert_to_tensor(y_tr)
+fp_tr = tf.convert_to_tensor(fp_tr)
 
 # make them into a dataset object
-ds = tf.data.Dataset.from_tensor_slices((x_tr, y_tr)).shuffle(y_tr.shape[0])
+ds = tf.data.Dataset.from_tensor_slices((x_tr, y_tr, fp_tr)).shuffle(y_tr.shape[0])
 ds = ds.apply(tf.contrib.data.batch_and_drop_remainder(BATCH_SZ))
 
 # get your favorite optimizer
