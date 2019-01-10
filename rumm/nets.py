@@ -20,7 +20,10 @@ def gru(units):
         return tf.keras.layers.CuDNNGRU(units,
                                     return_sequences=True,
                                     return_state=True,
-                                    recurrent_initializer='glorot_uniform')
+                                    recurrent_initializer='glorot_uniform',
+                                    kernel_regularizer=tf.keras.regularizers.l2(l=0.01),
+                                    recurrent_regularizer=tf.keras.regularizers.l2(l=0.01),
+                                    bias_regularizer=tf.keras.regularizers.l2(l=0.01))
     else:
         return tf.keras.layers.GRU(units,
                                return_sequences=True,
@@ -166,6 +169,38 @@ class AttentionDecoder(tf.keras.Model):
 
     def initialize_hidden_state(self):
         return tf.zeros((self.batch_sz, self.dec_units))
+
+class DeepAttentionDecoder(tf.keras.Model):
+    def __init__(self, vocab_size, embedding_dim=16, dec_units=128, batch_sz = 128):
+        super(DeepAttentionDecoder, self).__init__()
+        self.vocab_size = vocab_size
+        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+        self.dec_units = dec_units
+        self.fc = tf.keras.layers.Dense(vocab_size)
+        self.gru = nets.gru(self.dec_units)
+        self.D0 = tf.keras.layers.Dense(dec_units)
+        self.D1 = tf.keras.layers.Dense(dec_units)
+        self.D2 = tf.keras.layers.Dense(dec_units)
+        self.batch_sz = batch_sz
+
+    def __call__(self, x, attention_weights, hidden):
+        attention_weights = tf.nn.leaky_relu(self.D0(attention_weights))
+        attention_weights = tf.nn.leaky_relu(self.D1(attention_weights))
+        hidden = tf.nn.leaky_relu(self.D2(hidden))
+        context = tf.concat([attention_weights, hidden], axis=-1)
+        x = self.embedding(x)
+        x = tf.concat([tf.expand_dims(context, 1),
+                       x], axis=-1)
+
+        x, hidden = self.gru(x)
+        x = tf.reshape(x, (-1, x.shape[2]))
+        x = self.fc(x)
+        return x, hidden
+
+    def initialize_hidden_state(self):
+        return tf.zeros((self.batch_sz, self.dec_units))
+
+
 
 class BidirectionalAttention(tf.keras.Model):
     """

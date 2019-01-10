@@ -1,0 +1,260 @@
+ID	Name	SMIRKS	FunctionalGroup	TransformType
+1	Formation of acetals and ketals from aldehydes/ketones	[C:7][O:6][C:1][O:3][C:4]>>[C:7][O:6][H].[C:4][O:3][H].[O]=[C:1]	ACETALS and KETALS	FGE
+2	Synthesis of acid chlorides From Carboxylic Acids	[C:3][C:1](=[O:2])[Cl]>>[C:3][C:1](=[O:2])[O][H]	ACID CHLORIDES	FGE
+3	Synthesis of alcohols from acid chlorides 	[#6:7][C:1](=[O:2])[Cl]>>[#6:7][C:1]([H])([H])[O:2][H]	ALCOHOLS	FGE
+4	Synthesis of alcohols from anhydrides	[#6:7][C:1](=[O:2])[O][C](=[O])[C]>>[#6:7][C:1]([H])([H])[O:2][H]	ALCOHOLS	FGE
+5	Reduction of esters to alcohols	[#6:7][C:1](=[O:2])[O:3][#6:4]>>[#6:7][C:1]([H])([H])[O:2][H].[O:3]([H])[#6:4]	ALCOHOLS	FGE
+6	Hydration of alkenes	[H][C:2][C:1][O][H]>>[C:1]=[C:2]	ALCOHOLS	FGE
+7	Ether formation from alcohols	[C:1][O:2][C:3]>>[C:1][O:2][H].[H][O][C:3]	ETHERS	FGE
+8	Reduction of aldehydes/ketones	"[H,C:4][C:1]([H])([#6:5])[O:2][H]>>[H,C:4][C:1](=[O:2])[#6:5]"	ALCOHOLS	FGE
+9	Reduction of conjugated aldehydes/ketones	"[H,C:4][C:1]([H])([O:2][H])[C:5][C:3]>>[H,C:4][C:1](=[O:2])[C:5][C:3]"	ALCOHOLS	FGE
+10	Halohydrin formation from Alkenes	[C:1]([O][H])[C:2][Cl]>>[C:1]=[C:2]	ALCOHOLS-FUNCTIONALIZED	FGE
+11	Aldehydes From Acetals	[C:7][O:6][C:1][O:3][C:4]>>[C:7][O:6][H].[C:4][O:3][H].[O]=[C:1]	ALDEHYDES or KETONES	FGE
+12	Oxidation of secondary alcohols to ketones	[C:3][C:1]([C:4])=[O:2]>>[C:3][C:1]([H])([C:4])[O:2][H]	ALDEHYDES or KETONES	FGE
+13	Ozonolysis of alkenes	[C:1]=[C:2]>>[C:1]=[O].[C:2]=[O]	ALDEHYDES or KETONES	FGE
+14	Hydration of terminal alkynes	[C:1]([H])([H])[C:2]([H])=[O]>>[C:1]#[C:2]([H])	ALDEHYDES	FGE
+15	Oxidation of vicinal diols to aldehydes or ketones	"[O:3]([H])[C:1]([H,C:4])[C:2]([H,C:6])[O:5][H]>>[O:3]=[C:1]([H,C:4]).[C:2]([H,C:6])=[O:5]"	ALDEHYDES or KETONES	FGE
+16	Reduction of nitriles to aldehydes	[C:1][C:2](=[O])[H]>>[C:1][C:2]#[N]	ALDEHYDES or KETONES	FGE
+17	Reduction of Alkenes to Alkanes	[C:1]([H])[C:2]([H])>>[C:1]=[C:2]	ALKANES	FGE
+18	Reduction of cyclic alkenes	[C:1]([H])1[C:2]([H])[C:3]([H])[C:4]([H])[C:5]([H])[C:6]([H])1>>[C:1]1[C:2]=[C:3][C:4]=[C:5][C:6]=1	ALKANES	FGE
+19	Reduction of alkyl halides	[C:1]([H])[C:2]>>[Cl][C:1][C:2]	ALKANES	FGE
+20	Reduction of Ketones or Aldehydes	[C:3][C:1]([H])([H])[C:2]>>[C:3][C:1](=[O])[C:2]	ALKANES	FGE
+21	Reduction of Alkynes to Alkenes	[C:1]([H])=[C:2]([H])>>[C:1]#[C:2]	ALKENES	FGE
+22	Beta HX elimination	[C:3][C:2]=[C:1]>>[C:3][C:1][C:2]([H])[Cl]	ALKENES	FGE
+23	Alkene formation from Sulfonate Esters (elimination)	[C:1]=[C:2]>>[C:1]([H])[C:2][O][S](=[O])(=[O])([C]([H])([H])([H]))	ALKENES	FGE
+24	Alkene formation from Ammonium Salts (elimination)	[C:3][C:1]([C:2]([H]))[N]([C])([C])>>[C:3][C:1]=[C:2]	ALKENES	FGE
+25	Alkyne formation from Alkenyl Halides (elimination)	[C:1]#[C:2]>>[Br][C:2]=[C:1][H]	ALKYNES	FGE
+26	Synthesis of amides from carboxylic acids	[N][C:1](=[O:2])[C:7]>>[C:7][C:1](=[O:2])[O][H]	AMIDES	FGE
+27	Synthesis of amides from acyl chloride	[#6:4][N:5][C:1]=[O:2]>>[#6:4][N:5][H].[O:2]=[C:1][Cl]	AMIDES	FGE
+28	Synthesis of amides from esters	[N:3][C:1](=[O:2])[C:7]>>[C:7][C:1](=[O:2])[O][C]([H])([H])[C]([H])([H])([H]).[N:3][H]	AMIDES	FGE
+29	Synthesis of amides from anhydrides	[N:3][C:1](=[O:2])[C:7]>>[C:7][C:1](=[O:2])[O][C](=[O])[C]([H])([H])[C]([H])([H])([H]).[N:3][H]	AMIDES	FGE
+30	Catalytic hydration of nitriles to amides	[C:1][C:2](=[O])[O][H]>>[C:1][C:2]#[N]	AMIDES	FGE
+31	Reduction of alkyl azides to amines	[C:2][N:1]([H])([H])>>[N-]=[N+]=[N:1][C:2]	AMINES	FGE
+32	Amines From Imides	[C:2][N:1]([H])([H])>>[C:2][N:1]([C](=O)[C]([H])([H])[C]([H])([H])([H]))([C](=O)[C]([H])([H])[C]([H])([H])([H]))	AMINES	FGE
+33	Amines From Halides	[C:2][NX3:1]>>[NX3:1][H].[C:2][Cl]	AMINES	FGE
+34	Reduction of nitriles to amines	[C:1][C:2]([H])([H])[N:3]([H])[H]>>[N:3]#[C:2][C:1]	AMINES	FGE
+35	Reduction of nitro compounds to amines or anilines	[#6:1][N:2]([H])([H])>>[#6:1][NX3+:2](=[O])[O-]	AMINES	FGE
+36	Synthesis of anhydrides	[O:6]=[C:5][O:3][C:1]=[O:2]>>[O:2]=[C:1][O:3][H].[O:6]=[C:5][Br]	ANHYDRIDES	FGE
+37	Carboxylic acids From Acid chlorides	[C:3][C:1](=[O:2])[O][H]>>[C:3][C:1](=[O:2])[Cl]	CARBOXYLIC ACIDS	FGE
+38	Carboxylic acids From Anhydrides	[C:3][C:1](=[O:2])[O][H]>>[C:3][C:1](=[O:2])[O][C](=[O])[C]([H])([H])[C]([H])([H])([H])	CARBOXYLIC ACIDS	FGE
+39	Carboxylic acids From Esters	[C:3][C:1](=[O:2])[O][H]>>[C:3][C:1](=[O:2])[O][C]([H])([H])[C]([H])([H])([H])	CARBOXYLIC ACIDS	FGE
+40	Carboxylic acids From Amides	[C:3][C:1](=[O:2])[O][H]>>[C:3][C:1](=[O:2])[N]([H])([H])	CARBOXYLIC ACIDS	FGE
+41	Oxidation of primary alcohols to carboxylic acids	[O:2]=[C:1][O][H]>>[C:1]([H])([H])[O:2][H]	CARBOXYLIC ACIDS	FGE
+42	Decarboxylation	[C:5]([H])[C:1](=[O:2])[O:3][H]>>[H][O:3][C:1](=[O:2])[C:5][C](=[O])[O][H]	CARBOXYLIC ACIDS	FGE
+43	Hydrolysis of nitriles to carboxylic acids	[C:1][C:2](=[O])[O][H]>>[C:1][C:2]#[N]	CARBOXYLIC ACIDS	FGE
+44	Birch reduction	[C:1]([H])1[C:2]=[C:3][C:4]([H])[C:5]=[C:6]1>>[C:1]1=[C:2][C:3]=[C:4][C:5]=[C:6]1	DIENES	FGE
+45	Hydroxylation of alkenes	[H][O][C:1][C:2][O][H]>>[C:1]=[C:2]	DIOLS	FGE
+46	Cleavage of epoxides	[O][C:1][C:2][O]>>[C:1]1O[C:2]1	DIOLS	FGE
+47	Enamine formation	[N:1][C:2]=[C:3]>>[N:1][H].[O]=[C:2][C:3][H]	ENAMINES	FGE
+48	Oxidation of alkenes with peracids	[C:2]([H])1[C:1][O:3]1>>[C:1]=[C:2][C]([H])([H])([H]).[C]([H])([H])([H])[C](=[O])[O][O:3][H]	EPOXIDES	FGE
+49	Epoxide formation from Halohydrins	[C:2]1[C:1][O:3]1>>[C:1]([O:3][H])[C:2][Cl]	EPOXIDES	FGE
+50	Fischer esterification	[O:2]=[C:1][O:6][C:8]>>[H][O:6][C:8].[O:2]=[C:1][O][H]	ESTERS	FGE
+51	Acylation with acid chlorides	[O:2]=[C:1][O:6][C:8]>>[H][O:6][C:8].[O:2]=[C:1][Cl]	ESTERS	FGE
+52	Acylation with anhydrides	[O:2]=[C:1][O:6][C:8]>>[H][O:6][C:8].[O:2]=[C:1][O][C](=[O])[C]([H])([H])([H])	ESTERS	FGE
+53	Esterification of alcohols	[O:2]=[C:1][O:6][#6:8]>>[H][O:6][#6:8].[O:2]=[C:1][O][C]([H])([H])([H])	ESTERS	FGE
+54	Oxidation of ketones I	[C:1][C:2](=[O])[O][C:3]>>[C:1][C:2](=[O])[C:3]	ESTERS	FGE
+55	Oxidation of ketones II	[C:3][C:2](=[O])[O][C:1]>>[C:1][C:2](=[O])[C:3]	ESTERS	FGE
+56	Williamson ether synthesis	[C:1][O:2][C:4]>>[C:1][O:2][H].[C:4][Cl]	ETHERS	FGE
+57	Halogenation of alcohols with hydrogen halides	[C:1][Cl:2]>>[C:1][O][H].[Cl:2][H]	HALIDES (ALKYL)	FGE
+58	Halogenation	[#6:1][Cl]>>[#6:1]([H])	HALIDES (ALKYL)	FGE
+59	Hydrogen halide addition to alkenes	[Cl][C:1][C:3]([H])>>[C:1]=[C:3]	HALIDES (ALKYL)	FGE
+60	Halogen addition to alkenes	[Cl][C:1][C:3]([Cl])>>[C:1]=[C:3]	HALIDES (ALKYL)	FGE
+61	Hydrogen halide addition to alkynes	[Cl:3][C:2]=[C:1][H:4]>>[C:1]#[C:2].[Cl:3][H:4]	HALIDES (ALKENYL) 	FGE
+62	Condensation of primary amines and oxocompounds	[C:2]=[N][H]>>[O]=[C:2]	IMINES	FGE
+63	Hydartion of alkynes	[C:1]([H])([H])[C:2](=[O])[C:3]([H])([H])>>[C:1]([H])([H])[C:2]#[C:3]	KETONES or ALDEHYDES	FGE
+64	Oxidation of vicinal diols	[O:3]([H])[C:1]([C:4])[C:2]([C:7])([C:6])[O:5][H]>>[O:3]=[C:1]([C:4]).[C:2]([C:7])([C:6])=[O:5]	KETONES or ALDEHYDES	FGE
+65	Decarboxylation of ?-ketoacid	[C:1]([H])[C:2](=[O:3])>>[C:1]([C](=[O])[O][H])[C:2](=[O:3])	KETONES or ALDEHYDES	FGE
+66	Dehydration of amides to nitriles	[C:1][C:2]#[N:3]>>[C:1][C:2](=[O])[N:3]([H])[H]	NITRILES	FGE
+67	Nitration of Aromatic Hydrocarbons	[c;H0:1][N+]([O-])=[O]>>[c:1][H]	NITRO COMPOUNDS	FGE
+68	Alkyl Lithium formation from alkyl halides	[C:1][Li]>>[C:1][Cl]	ORGANOMETALLICS	FGE
+69	Aryl Halides to Phenols	[c:1][O][H]>>[c:1][Cl]	PHENOLS	FGE
+70	Primary Anilines to Phenols	[c:1][O][H]>>[c:1][N]([H])([H])	PHENOLS	FGE
+71	Sulfonation of aromatic hydrocarbons	[c:1][S](=[O])(=[O])[O][H]>>[c:1]([H])	SULFONIC ACIDS	FGE
+72	Grignard Alcohol From Acid Chloride and Organometallics	[C:1][C:4]([C:2])([C:6])[O:5][H]>>[C:1][Mg][Br].[C:2][Mg][Br].[C:6][C:4](=[O:5])[Cl]	ALCOHOLS	C-C
+73	Grignard Alcohol From Anhydride and Organometallics	[C:1][C:4]([C:2])([C:6])[O:5][H]>>[C:1][Mg][Br].[C:2][Mg][Br].[C:6][C:4](=[O:5])[O][C](=[O])[C]([H])([H])[C]([H])([H])([H])	ALCOHOLS	C-C
+74	Grignard Alcohol From Esters and Organometallics	[C:1][C:4]([C:2])([C:6])[O:5][H]>>[C:1][Mg][Br].[C:2][Mg][Br].[C:6][C:4](=[O:5])[O][C]([H])([H])[C]([H])([H])([H])	ALCOHOLS	C-C
+75	Grignard Alcohol From Epoxides	[C:4][C:2]([H])[C:1][O:3][H]>>[C:2]([H])1[C:1][O:3]1.[C:4][Mg][Br]	ALCOHOLS	C-C
+76	Grignard reaction to carbonyl compounds	[C:3][C:1][O:2][H]>>[C:1]=[O:2].[Cl][Mg][C:3]	ALCOHOLS	C-C
+77	?-hydroxyester formation	"[O:6]([H])[C:5]([C:4])([H,C:7])[C:2][C:1](=[O:3])[O:8][C:9]>>[C:4][C:5]([H,C:7])=[O:6].[C:2]([H])[C:1](=[O:3])[O:8][C:9]"	ALCOHOLS-ESTERS	C-C
+78	Alkylation of aldehydes/ketones	[C:1][C:2][C:3](=[O:5])[C:4]>>[C:1][I].[C:2]([H])[C:3](=[O:5])[C:4]	ALDEHYDES and KETONES	C-C
+79	Aromatic aldehydes fom Organometallics 	[c:1][C](=[O])[H]>>[c:1][Mg][Br]	ALDEHYDES and KETONES	C-C
+80	Claisen rearrangement	[C:1](=[O:2])[C:6][C:5][C:4]=[C:3]>>[C:6]=[C:1][O:2][C:3][C:4]=[C:5]	ALDEHYDE-ALKENES	C-C
+81	[2+2]-photocycloaddition	[C:1]1[C:2][C:3][C:4]1[C:5]>>[C:1]=[C:2].[C:3]=[C:4][C:5]	ALKANES	C-C
+82	[2+2]-photocycloaddition	[C:1]1[C:2][C:4]([C;R0:5])[C:3]1>>[C:1]=[C:2].[C:3]=[C:4][C:5]	ALKANES	C-C
+83	Negishi coupling	[C:1][C:2]>>[C:1][Zn][Cl].[C:2][Cl]	ALKANES	C-C
+84	Heck reaction	[C:1]=[C:2][#6:3]>>[C:1]=[C:2]([H]).[#6:3][Cl]	ALKENES	C-C
+85	Diels-Alder cycloaddition	[C:1]1[C:2]=[C:3][C:4][C:5][C:6]1>>[C:1]=[C:2][C:3]=[C:4].[C:5]=[C:6]	ALKENES	C-C
+86	Ring Closing Metathesis	[C:1]=[C:2]CCCC[C:3]=[C:4]>>[C:2]1=[C:3]C([H])([H])C([H])([H])C([H])([H])C([H])([H])1.[C:1]=[C:4]	ALKENES	C-C
+87	Wittig reaction	[C:1]=[C:2]>>[C:1]=[O].[C:2]([H])[Cl]	ALKENES	C-C
+88	Sonogashira coupling	[C:1]=[#6:2][C:3]#[#6:4]([H])>>[C:1]=[#6:2][Cl].[#6:4]([H])#[C:3]([H])	ALKYNES	C-C
+89	Alkyne-alcohol formation	[C:1]#[C:2][C:4]([C:3])([O:6][H])[C:5]>>[C:1]#[C:2][Na].[C:3][C:4](=[O:6])[C:5]	ALKYNE-ALCOHOLS	C-C
+90	Friedel-Crafts alkylation	[c:1][C:3]>>[c:1].[Cl][C:3]	ARENES	C-C
+91	Suzuki coupling	[c;H0:1][c;H0:2]>>[c;H1:1][Cl].[c;H1:2][B]([O][H])[O][H]	BIARYLS	C-C
+92	Grignard addition to Carbon Dioxide 	[C:1][C:2](=[O])[O][H]>>[C:1][Mg][Br].[O]=[C:2]=[O]	CARBOXYLIC ACIDS	C-C
+93	"1,5-sigmatropic hydrogen shifts"	[C:1]1[C:2]=[C:3][C:4]([H])[C:5]=1>>[C:1]1=[C:2][C:3]=[C:4][C:5]([H])1	DIENES	C-C
+94	Cope rearrangement	[C:1]=[C:2][C:3][C:4][C:5]=[C:6]>>[C:3]=[C:2][C:1][C:6][C:5]=[C:4]	DIENES	C-C
+95	Diketone formation from Ketones and Esters	[C:6][O:5][C:1](=[O:2])[C:3][C:7]=[O:8]>>[C]([H])([H])([H])[C:7]=[O:8].[C:3]([H])[C:1](=[O:2])[O:5][C:6]	DIKETONES	C-C
+96	Michael addition	[C:1][C:2](=[O:4])[C:3][C:9][C:8]([H])[C:6](=[O:7])[C:5]>>[C:1][C:2](=[O:4])[C:3]([H]).[C:9]=[C:8][C:6](=[O:7])[C:5]	DIKETONES	C-C
+97	Alpha-alkylation of esters	[C:1][C:2]([C:7])[C:3](=[O:4])[O:5][C:6]>>[C:1][C:2]([H])[C:3](=[O:4])[O:5][C:6].[C:7][Cl]	ESTERS	C-C
+98	Claisen condensation	[C:1][O:5][C:3](=[O:4])[C:2][C:7](=[O:8])[C:6]>>[C:6][C:7](=[O:8])[O][C]([H])([H])([H]).[C:2]([H])[C:3](=[O:4])[O:5][C:1]	ESTERS	C-C
+99	Dieckmann condensation	[C:10][O:9][C:7](=[O:8])[C:1]1[C:2][C:3][C:4][C:5](=[O:6])1>>[C:10][O:9][C:7](=[O:8])[C:1]([H])[C:2][C:3][C:4][C:5](=[O:6])[O][C]([H])([H])([H])	ESTERS	C-C
+100	Ketone formation from acid chlorides and organocuprates	[C:1][C:2](=[O:3])[C:4]>>[C:4][Cu-]([C]([H])([H])([H]))[Li+].[C:1][C:2](=[O:3])[Cl]	KETONES	C-C
+101	Friedel-Crafts acylation	"[c:1][C,S:2]([H])=[O]>>[c:1][H].[Cl][C,S:2]([H])=[O]"	KETONES	C-C
+102	Ketones formation from Conjugated Ketones with Organometallics	[C:1][C:2](=[O:3])[C:6]([H])[C:4][C:5]>>[C:5][C:4][Cu-]([C]([H])([H])[C]([H])([H])([H]))[Li+].[C:1][C:2](=[O:3])[C:6]=[C]([H])([H])	KETONES	C-C
+103	Robinson annulation	[C:1]1[C:2]([C:3])=[C:4][C:5](=[O:6])[C:7]([H])[C:8]1>>[C:1]([H])[C:2](=O)[C:3].[C:4]([H])([H])[C:5](=[O:6])[C:7]=[C:8]	KETONES	C-C
+104	Ketone formation from Nitriles and Organometallics	[C:1][C:2](=[O])[C:4]>>[C:1][C:2]#[N].[C:4][Mg][Br]	KETONES	C-C
+105	Aldol reaction	[#6:1](=[O:2])[#6:3][#6:5]([#6:9])[O:6][H]>>[#6:1](=[O:2])[#6:3]([H]).[#6:5](=[O:6])[#6:9]	KETONE-ALCOHOLS	C-C
+106	Nitrile formation from Alkyl Halides	[C:1][C:2][C:4]#[N:5]>>[C:1][C:2][Br].[N:5]#[C:4][Na]	NITRILES	C-C
+107	Nitrile-alcohol formation from Ketones or Alcohols	[N:4]#[C:3][C:1][O:2][H]>>[C:1]=[O:2].[N:4]#[C:3][Na]	NITRILE-ALCOHOLS	C-C
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
