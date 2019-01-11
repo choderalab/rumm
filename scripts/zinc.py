@@ -11,7 +11,8 @@ import nets
 import bayesian
 
 # constants
-BATCH_SZ = 4096
+BATCH_SZ = 2048
+'''
 zinc_df = pd.read_csv('res.csv', sep='\t')
 
 # shuffle it, and conduct training-test split
@@ -39,9 +40,16 @@ np.save('y_tr', y_tr)
 np.save('x_tr', x_tr)
 np.save('y_te', y_te)
 np.save('x_te', x_te)
+np.save('fp_tr', fp_tr)
+np.save('fp_te', fp_te)
+'''
+
+y_tr = np.load('y_tr.npy')
+x_tr = np.load('x_tr.npy')
+fp_tr = np.load('fp_tr.npy')
 
 # create the language object and map it to strings
-lang_obj = lang.Lang(list(x_tr) + list(x_te))
+lang_obj = lang.Lang(list(x_tr))
 vocab_size = len(lang_obj.idx2ch) + 1
 x_tr = lang.preprocessing(x_tr, lang_obj)
 
@@ -64,6 +72,13 @@ fp_tr = tf.convert_to_tensor(fp_tr)
 # make them into a dataset object
 ds = tf.data.Dataset.from_tensor_slices((x_tr, y_tr, fp_tr)).shuffle(y_tr.shape[0])
 ds = ds.apply(tf.contrib.data.batch_and_drop_remainder(BATCH_SZ))
+
+x_tr = None
+y_tr = None
+fp_tr = None
+x_te = None
+y_te = None
+fp_te = None
 
 # get your favorite optimizer
 optimizer=tf.train.AdamOptimizer()
@@ -140,57 +155,57 @@ for epoch in range(1000):
             print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
             print(loss0.numpy(), loss1.numpy(), loss2.numpy(), loss3.numpy())
 
-        with tf.GradientTape(persistent=True, watch_accessed_variables=False) as tape1:
-            tape1.watch(w0_task)
-            tape1.watch(w1_task)
-            tape1.watch(w2_task)
-            tape1.watch(w3_task)
+            with tf.GradientTape(persistent=True, watch_accessed_variables=False) as tape1:
+                tape1.watch(w0_task)
+                tape1.watch(w1_task)
+                tape1.watch(w2_task)
+                tape1.watch(w3_task)
 
-            gw_grad_0 = w0_task * tape.gradient(loss0, d_mean.C0.weights[0])
-            gw_grad_1 = w1_task * tape.gradient(loss1, d_mean.C0.weights[0])
-            gw_grad_2 = w2_task * tape.gradient(loss2, d_mean.C0.weights[0])
-            gw_grad_3 = w3_task * tape.gradient(loss3, d_mean.C0.weights[0])
+                gw_grad_0 = w0_task * tape.gradient(loss0, d_mean.C0.weights[0])
+                gw_grad_1 = w1_task * tape.gradient(loss1, d_mean.C0.weights[0])
+                gw_grad_2 = w2_task * tape.gradient(loss2, d_mean.C0.weights[0])
+                gw_grad_3 = w3_task * tape.gradient(loss3, d_mean.C0.weights[0])
 
-            gw0 = tf.clip_by_value(tf.norm(gw_grad_0), -1e18, 1e18)
-            gw1 = tf.clip_by_value(tf.norm(gw_grad_1), -1e18, 1e18)
-            gw2 = tf.clip_by_value(tf.norm(gw_grad_2), -1e18, 1e18)
-            gw3 = tf.clip_by_value(tf.norm(gw_grad_3), -1e18, 1e18)
+                gw0 = tf.clip_by_value(tf.norm(gw_grad_0), -1e18, 1e18)
+                gw1 = tf.clip_by_value(tf.norm(gw_grad_1), -1e18, 1e18)
+                gw2 = tf.clip_by_value(tf.norm(gw_grad_2), -1e18, 1e18)
+                gw3 = tf.clip_by_value(tf.norm(gw_grad_3), -1e18, 1e18)
 
-            gw_bar = tf.div_no_nan(gw0 + gw1 + gw2 + gw3, 4.0)
-            l0_tilde = tf.div_no_nan(loss0, loss0_int)
-            l1_tilde = tf.div_no_nan(loss1, loss1_int)
-            l2_tilde = tf.div_no_nan(loss2, loss2_int)
-            l3_tilde = tf.div_no_nan(loss3, loss3_int)
+                gw_bar = tf.div_no_nan(gw0 + gw1 + gw2 + gw3, 4.0)
+                l0_tilde = tf.div_no_nan(loss0, loss0_int)
+                l1_tilde = tf.div_no_nan(loss1, loss1_int)
+                l2_tilde = tf.div_no_nan(loss2, loss2_int)
+                l3_tilde = tf.div_no_nan(loss3, loss3_int)
 
-            l_tilde_bar = tf.div_no_nan(l0_tilde + l1_tilde + l2_tilde + l3_tilde, 4.0)
+                l_tilde_bar = tf.div_no_nan(l0_tilde + l1_tilde + l2_tilde + l3_tilde, 4.0)
 
-            r0 = tf.div_no_nan(l0_tilde, l_tilde_bar)
-            r1 = tf.div_no_nan(l1_tilde, l_tilde_bar)
-            r2 = tf.div_no_nan(l2_tilde, l_tilde_bar)
-            r3 = tf.div_no_nan(l3_tilde, l_tilde_bar)
+                r0 = tf.div_no_nan(l0_tilde, l_tilde_bar)
+                r1 = tf.div_no_nan(l1_tilde, l_tilde_bar)
+                r2 = tf.div_no_nan(l2_tilde, l_tilde_bar)
+                r3 = tf.div_no_nan(l3_tilde, l_tilde_bar)
 
-            l_grad = tf.math.abs(gw0 - tf.stop_gradient(gw_bar * tf.math.pow(r0, alpha))) +\
-                     tf.math.abs(gw1 - tf.stop_gradient(gw_bar * tf.math.pow(r1, alpha))) +\
-                     tf.math.abs(gw2 - tf.stop_gradient(gw_bar * tf.math.pow(r2, alpha))) +\
-                     tf.math.abs(gw3 - tf.stop_gradient(gw_bar * tf.math.pow(r3, alpha)))
+                l_grad = tf.math.abs(gw0 - tf.stop_gradient(gw_bar * tf.math.pow(r0, alpha))) +\
+                         tf.math.abs(gw1 - tf.stop_gradient(gw_bar * tf.math.pow(r1, alpha))) +\
+                         tf.math.abs(gw2 - tf.stop_gradient(gw_bar * tf.math.pow(r2, alpha))) +\
+                         tf.math.abs(gw3 - tf.stop_gradient(gw_bar * tf.math.pow(r3, alpha)))
 
 
-        delta_l_grad_0 = tf.clip_by_norm(tape1.gradient(l_grad, w0_task), 1e18)
-        delta_l_grad_1 = tf.clip_by_norm(tape1.gradient(l_grad, w1_task), 1e18)
-        delta_l_grad_2 = tf.clip_by_norm(tape1.gradient(l_grad, w2_task), 1e18)
-        delta_l_grad_3 = tf.clip_by_norm(tape1.gradient(l_grad, w3_task), 1e18)
+            delta_l_grad_0 = tf.clip_by_norm(tape1.gradient(l_grad, w0_task), 1e18)
+            delta_l_grad_1 = tf.clip_by_norm(tape1.gradient(l_grad, w1_task), 1e18)
+            delta_l_grad_2 = tf.clip_by_norm(tape1.gradient(l_grad, w2_task), 1e18)
+            delta_l_grad_3 = tf.clip_by_norm(tape1.gradient(l_grad, w3_task), 1e18)
 
-        optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
-        optimizer.apply_gradients([(delta_l_grad_1, w1_task)])
-        optimizer.apply_gradients([(delta_l_grad_2, w2_task)])
-        optimizer.apply_gradients([(delta_l_grad_3, w3_task)])
+            optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
+            optimizer.apply_gradients([(delta_l_grad_1, w1_task)])
+            optimizer.apply_gradients([(delta_l_grad_2, w2_task)])
+            optimizer.apply_gradients([(delta_l_grad_3, w3_task)])
 
-        w_total = w0_task + w1_task + w2_task + w3_task
+            w_total = w0_task + w1_task + w2_task + w3_task
 
-        w0_task.assign(w0_task * tf.div_no_nan(4.0, w_total))
-        w1_task.assign(w1_task * tf.div_no_nan(4.0, w_total))
-        w2_task.assign(w2_task * tf.div_no_nan(4.0, w_total))
-        w3_task.assign(w3_task * tf.div_no_nan(4.0, w_total))
+            w0_task.assign(w0_task * tf.div_no_nan(4.0, w_total))
+            w1_task.assign(w1_task * tf.div_no_nan(4.0, w_total))
+            w2_task.assign(w2_task * tf.div_no_nan(4.0, w_total))
+            w3_task.assign(w3_task * tf.div_no_nan(4.0, w_total))
 
     if not tf.debugging.is_nan(lt):
         fcuk.save_weights('./fcuk.h5')
