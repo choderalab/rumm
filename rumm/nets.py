@@ -181,6 +181,7 @@ class DeepAttentionDecoder(tf.keras.Model):
         self.D0 = tf.keras.layers.Dense(dec_units)
         self.D1 = tf.keras.layers.Dense(dec_units)
         self.D2 = tf.keras.layers.Dense(dec_units)
+        self.D3 = tf.keras.layers.Dense(dec_units)
         self.batch_sz = batch_sz
 
     def __call__(self, x, attention_weights, hidden):
@@ -191,6 +192,7 @@ class DeepAttentionDecoder(tf.keras.Model):
         x = self.embedding(x)
         x = tf.concat([tf.expand_dims(context, 1),
                        x], axis=-1)
+        x = self.D3(x)
 
         x, hidden = self.gru(x)
         x = tf.reshape(x, (-1, x.shape[2]))
