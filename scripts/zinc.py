@@ -11,7 +11,7 @@ import nets
 import bayesian
 
 # constants
-BATCH_SZ = 2048
+BATCH_SZ = 4096
 '''
 zinc_df = pd.read_csv('res.csv', sep='\t')
 
@@ -48,21 +48,21 @@ y_tr = np.load('y_tr.npy')
 x_tr = np.load('x_tr.npy')
 fp_tr = np.load('fp_tr.npy')
 
-# create the language object and map it to strings
-lang_obj = lang.Lang(list(x_tr))
+f_handle = open('lang_obj.p', 'wb')
+lang_obj = pickle.load(f_handle)
+f_handle.close()
 vocab_size = len(lang_obj.idx2ch) + 1
-x_tr = lang.preprocessing(x_tr, lang_obj)
 
 # define models
-enc_f = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False, enc_units = 256, embedding_dim = 8)
-enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True, enc_units = 256, embedding_dim = 8)
+enc_f = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False, enc_units = 256, embedding_dim = 4)
+enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True, enc_units = 256, embedding_dim = 4)
 attention = nets.BidirectionalWideAttention(128)
-fcuk = nets.FullyConnectedUnits([128, 'leaky_relu', 0.10, 512, 'leaky_relu', 0.25, 512, 'leaky_relu'])
+fcuk = nets.FullyConnectedUnits([128, 'leaky_relu', 0.10, 1024, 'leaky_relu', 0.25, 512, 'leaky_relu'])
 d_mean = nets.FullyConnectedUnits([16])
 d_log_var = nets.FullyConnectedUnits([16])
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
-decoder = nets.DeepAttentionDecoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, embedding_dim = 8)
+decoder = nets.DeepAttentionDecoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, embedding_dim = 4)
 
 # convert to tensor
 x_tr = tf.convert_to_tensor(x_tr)
