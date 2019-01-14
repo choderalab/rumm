@@ -21,9 +21,9 @@ def gru(units):
                                     return_sequences=True,
                                     return_state=True,
                                     recurrent_initializer='glorot_uniform',
-                                    kernel_regularizer=tf.keras.regularizers.l2(l=0.01),
-                                    recurrent_regularizer=tf.keras.regularizers.l2(l=0.01),
-                                    bias_regularizer=tf.keras.regularizers.l2(l=0.01))
+                                    kernel_regularizer=tf.keras.regularizers.l2(l=0.1),
+                                    recurrent_regularizer=tf.keras.regularizers.l2(l=0.1),
+                                    bias_regularizer=tf.keras.regularizers.l2(l=0.1))
     else:
         return tf.keras.layers.GRU(units,
                                return_sequences=True,
@@ -67,7 +67,9 @@ class FullyConnectedUnits(tf.keras.Model):
 
             elif isinstance(value, int):
                 assert (value >= 1), "Can\'t have fewer than one neuron."
-                setattr(self, 'C' + str(idx), tf.keras.layers.Dense(value))
+                setattr(self, 'C' + str(idx), tf.keras.layers.Dense(value,
+                  kernel_regularizer = tf.keras.regularizers.l2(0.01), 
+                  bias_regularizer = tf.keras.regularizers.l2(0.01)))
 
             elif isinstance(value, float):
                 assert (value < 1), "Can\'t have dropouts larger than one."
@@ -177,7 +179,7 @@ class DeepAttentionDecoder(tf.keras.Model):
         self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
         self.dec_units = dec_units
         self.fc = tf.keras.layers.Dense(vocab_size)
-        self.gru = nets.gru(self.dec_units)
+        self.gru = gru(self.dec_units)
         self.D0 = tf.keras.layers.Dense(dec_units)
         self.D1 = tf.keras.layers.Dense(dec_units)
         self.D2 = tf.keras.layers.Dense(dec_units)
