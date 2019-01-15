@@ -101,8 +101,9 @@ w1_task = tf.Variable(1.0, dtype=tf.float32)
 w2_task = tf.Variable(1.0, dtype=tf.float32)
 w3_task = tf.Variable(1.0, dtype=tf.float32)
 
+optimizer = tf.train.AdamOptimizer(5e-5)
+alpha = 1.5
 
-alpha = 1.0
 for epoch in range(1000):
 
     total_loss = 0 # initialize the total loss at the beginning to be 0
@@ -130,6 +131,7 @@ for epoch in range(1000):
             dec_input = tf.expand_dims([lang_obj.ch2idx['G']] * BATCH_SZ, 1)
             hidden = decoder.initialize_hidden_state()
             loss2 = 1e-8
+
             for t in range(xs.shape[1]):
                 ch_hat, hidden = decoder(dec_input, z, hidden)
                 loss2 += seq_loss(xs[:, t], ch_hat)
@@ -138,14 +140,8 @@ for epoch in range(1000):
             loss3 = tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=1))
 
 
-            if batch == 0:
-                loss0_int = loss0
-                loss1_int = loss1
-                loss2_int = loss2
-                loss3_int = loss3
 
             lt = w0_task * loss0 + w1_task * loss1 + w2_task * loss2 + w3_task * loss3
-            lt = tf.clip_by_norm(lt, 1e5)
 
         # start grad norm
         variables = enc_f.variables + enc_b.variables + fcuk.variables +\
@@ -157,8 +153,15 @@ for epoch in range(1000):
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
 
         if batch % 10 == 0:
+            if batch == 0:
+                loss0_int = loss0
+                loss1_int = loss1
+                loss2_int = loss2
+                loss3_int = loss3
+
             print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
             print(loss0.numpy(), loss1.numpy(), loss2.numpy(), loss3.numpy())
+            print(w0_task.numpy(), w1_task.numpy(), w2_task.numpy(), w3_task.numpy())
 
             with tf.GradientTape(persistent=True, watch_accessed_variables=False) as tape1:
                 tape1.watch(w0_task)
@@ -166,17 +169,18 @@ for epoch in range(1000):
                 tape1.watch(w2_task)
                 tape1.watch(w3_task)
 
-                gw_grad_0 = w0_task * tape.gradient(loss0, d_mean.C0.weights[0])
-                gw_grad_1 = w1_task * tape.gradient(loss1, d_mean.C0.weights[0])
-                gw_grad_2 = w2_task * tape.gradient(loss2, d_mean.C0.weights[0])
-                gw_grad_3 = w3_task * tape.gradient(loss3, d_mean.C0.weights[0])
+                gw_grad_0 = w0_task * tf.clip_by_norm(tape.gradient(loss0, d_mean.C0.weights[0]), 1e2)
+                gw_grad_1 = w1_task * tf.clip_by_norm(tape.gradient(loss1, d_mean.C0.weights[0]), 1e2)
+                gw_grad_2 = w2_task * tf.clip_by_norm(tape.gradient(loss2, d_mean.C0.weights[0]), 1e2)
+                gw_grad_3 = w3_task * tf.clip_by_norm(tape.gradient(loss3, d_mean.C0.weights[0]), 1e2)
 
-                gw0 = tf.clip_by_value(tf.norm(gw_grad_0), -1e5, 1e5)
-                gw1 = tf.clip_by_value(tf.norm(gw_grad_1), -1e5, 1e5)
-                gw2 = tf.clip_by_value(tf.norm(gw_grad_2), -1e5, 1e5)
-                gw3 = tf.clip_by_value(tf.norm(gw_grad_3), -1e5, 1e5)
+                gw0 = tf.clip_by_norm(tf.norm(gw_grad_0), 1e2)
+                gw1 = tf.clip_by_norm(tf.norm(gw_grad_1), 1e2)
+                gw2 = tf.clip_by_norm(tf.norm(gw_grad_2), 1e2)
+                gw3 = tf.clip_by_norm(tf.norm(gw_grad_3), 1e2)
 
                 gw_bar = tf.div_no_nan(gw0 + gw1 + gw2 + gw3, 4.0)
+
                 l0_tilde = tf.clip_by_norm(tf.div_no_nan(loss0, loss0_int),
                     1e5)
                 l1_tilde = tf.clip_by_norm(tf.div_no_nan(loss1, loss1_int),
@@ -185,6 +189,7 @@ for epoch in range(1000):
                     1e5)
                 l3_tilde = tf.clip_by_norm(tf.div_no_nan(loss3, loss3_int),
                     1e5)
+
 
                 l_tilde_bar = tf.div_no_nan(l0_tilde + l1_tilde + l2_tilde + l3_tilde, 4.0)
 
@@ -197,7 +202,7 @@ for epoch in range(1000):
                          tf.math.abs(gw1 - tf.stop_gradient(gw_bar * tf.math.pow(r1, alpha))) +\
                          tf.math.abs(gw2 - tf.stop_gradient(gw_bar * tf.math.pow(r2, alpha))) +\
                          tf.math.abs(gw3 - tf.stop_gradient(gw_bar * tf.math.pow(r3, alpha)))
-               
+
                 l_grad = tf.clip_by_norm(l_grad, 1e2)
 
             delta_l_grad_0 = tf.clip_by_norm(tape1.gradient(l_grad, w0_task),
@@ -209,19 +214,26 @@ for epoch in range(1000):
             delta_l_grad_3 = tf.clip_by_norm(tape1.gradient(l_grad, w3_task),
                 1e5)
 
-            optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
-            optimizer.apply_gradients([(delta_l_grad_1, w1_task)])
-            optimizer.apply_gradients([(delta_l_grad_2, w2_task)])
-            optimizer.apply_gradients([(delta_l_grad_3, w3_task)])
+            @tf.contrib.eager.defun
+            def update():
+                optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
+                optimizer.apply_gradients([(delta_l_grad_1, w1_task)])
+                optimizer.apply_gradients([(delta_l_grad_2, w2_task)])
+                optimizer.apply_gradients([(delta_l_grad_3, w3_task)])
 
-            w_total = w0_task + w1_task + w2_task + w3_task
+                w_total = w0_task + w1_task + w2_task + w3_task
 
-            w0_task.assign(w0_task * tf.div_no_nan(4.0, w_total))
-            w1_task.assign(w1_task * tf.div_no_nan(4.0, w_total))
-            w2_task.assign(w2_task * tf.div_no_nan(4.0, w_total))
-            w3_task.assign(w3_task * tf.div_no_nan(4.0, w_total))
+                w0_task.assign(w0_task * tf.div_no_nan(4.0, w_total))
+                w1_task.assign(w1_task * tf.div_no_nan(4.0, w_total))
+                w2_task.assign(w2_task * tf.div_no_nan(4.0, w_total))
+                w3_task.assign(w3_task * tf.div_no_nan(4.0, w_total))
 
-    if not tf.debugging.is_nan(lt):
+            tf.cond(tf.debugging.is_nan(delta_l_grad_0 + delta_l_grad_1 + delta_l_grad_2 + delta_l_grad_3),
+                   lambda: None,
+                   lambda: update())
+
+
+    if not np.is_nan(lt.numpy()):
         fcuk.save_weights('./fcuk.h5')
         enc_f.save_weights('./enc_f.h5')
         enc_b.save_weights('./enc_b.h5')
