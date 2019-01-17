@@ -118,3 +118,5 @@ class ConditionalGAN(tf.keras.Model):
 
             self.D.save_weights('./D.h5')
             self.G.save_weights('./G.h5')
+            print('D: %s' % loss_d.numpy())
+            print('G: &s' % loss_g.numpy())
