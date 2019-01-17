@@ -28,8 +28,7 @@ enc_f = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False,
 enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True,
     enc_units = 256)
 attention = nets.BidirectionalWideAttention(128)
-fcuk = nets.FullyConnectedUnits([128, 'leaky_relu', 0.10, 1024, 'leaky_relu',
-  0.25, 512, 'leaky_relu', 32])
+fcuk = nets.FullyConnectedUnits([128, 'leaky_relu', 1024, 'leaky_relu', 512, 'leaky_relu', 32])
 d_mean = nets.FullyConnectedUnits([16])
 
 # initialize
