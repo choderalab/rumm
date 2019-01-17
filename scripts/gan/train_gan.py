@@ -15,22 +15,25 @@ import swifter
 BATCH_SZ = 2048
 
 # load_dataset
-df = pd.read_csv('first_10k.dat', sep='\t', quotechar='\'', header=None, names=['0', '1'])
-df['0'] = df['0'].swifter.apply(lambda x: x if len(x) <= 62 else np.nan)
-df['1'] = df['1'].swifter.apply(lambda x: x if len(x) <= 62 else np.nan)
+df = pd.read_csv('all_chembl_mol_pairs.dat', sep='\t', quotechar='\'', header=None, names=['0', '1'])
+df['0'] = df['0'].swifter.apply(lambda x: x if len(x) <= 62 and 'i' not in
+    x and 'e' not in x and 'A' not in x else np.nan)
+df['1'] = df['1'].swifter.apply(lambda x: x if len(x) <= 62 and 'i' not in
+    x and 'e' not in x and 'A' not in x else np.nan)
 df = df.dropna()
 
 xs = df.values[:, 0]
 ys = df.values[:, 1]
 xs = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, xs)
-ys = np.apply_along_axis(lambda x: 'G' + y + 'E', 0, xs)
-xs = tf.convert_to_tensor(xs)
-ys = tf.convert_to_tensor(ys)
-
+ys = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, ys)
 f_handle = open('lang_obj.p', 'rb')
 lang_obj = pickle.load(f_handle)
 f_handle.close()
 vocab_size = len(lang_obj.idx2ch) + 1
+xs = lang.preprocessing(xs, lang_obj)
+ys = lang.preprocessing(ys, lang_obj)
+xs = tf.convert_to_tensor(xs)
+ys = tf.convert_to_tensor(ys)
 
 # define models
 gan_box = gan.ConditionalGAN(batch_sz = 2048)
@@ -51,11 +54,11 @@ attention_weights = fcuk(attention_weights)
 mean = d_mean(attention_weights)
 
 # load weights
-enc_f.load_weights('./enc_f.h5')
-enc_b.load_weights('./enc_b.h5')
-attention.load_weights('./attention_weights.h5')
-fcuk.load_weights('./fcuk.h5')
-d_mean.load_weights('./d_mean.h5')
+enc_f.load_weights('weights/enc_f.h5')
+enc_b.load_weights('weights/enc_b.h5')
+attention.load_weights('weights/attention_weights.h5')
+fcuk.load_weights('weights/fcuk.h5')
+d_mean.load_weights('weights/d_mean.h5')
 
 # load x
 eo_f, h_f = enc_f(xs)
@@ -71,6 +74,8 @@ attention_weights = attention(eo_f, eo_b, h_f, h_b)
 attention_weights = fcuk(attention_weights)
 y_mean = d_mean(attention_weights)
 
+np.save('x_mean', x_mean.numpy())
+np.save('y_mean', y_mean.numpy())
 # train
 gan_box.load_dataset(x_mean, y_mean)
 gan_box.train()
