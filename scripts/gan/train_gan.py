@@ -18,7 +18,7 @@ BATCH_SZ = 2048
 df = pd.read_csv('first_10k.dat', sep='\t', quotechar='\'', header=None, names=['0', '1'])
 df['0'] = df['0'].swifter.apply(lambda x: x if len(x) <= 62 else np.nan)
 df['1'] = df['1'].swifter.apply(lambda x: x if len(x) <= 62 else np.nan)
-df.dropna()
+df = df.dropna()
 
 xs = df.values[:, 0]
 ys = df.values[:, 1]
