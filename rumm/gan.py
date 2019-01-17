@@ -20,7 +20,7 @@ import nets
 # ===============
 # utility classes
 # ===============
-class GAN(tf.keras.Model):
+class ConditionalGAN(tf.keras.Model):
     """
     Generative adversary network.
 
@@ -31,16 +31,17 @@ class GAN(tf.keras.Model):
     Discriminator: Discriminate whether the molecule pair is generic or synthesized.
     """
     def __init__(self,
-                 g_config = [128, 'leaky_relu', 128, 'leaky_relu', 128, 'leaky_relu', 8],
-                 d_config = [64, 0.10, 'leaky_relu', 64, 0.10, 'leaky_relu', 1, 'sigmoid'],
+                 g_config = [512, 'leaky_relu', 1024, 'leaky_relu', 1024, 'leaky_relu', 8],
+                 d_config = [128, 0.25, 'leaky_relu', 128, 0.25, 'leaky_relu', 1, 'sigmoid'],
                  batch_sz = 2048, n_epochs = 500):
 
-        super(GAN, self).__init__()
+        super(ConditionalGAN, self).__init__()
         self.G = nets.FullyConnectedUnits(g_config)
         self.D = nets.FullyConnectedUnits(d_config)
         self.batch_sz = batch_sz
         self.ds = None
 
+    @tf.contrib.eager.defun
     def g_sample(self, x):
         """
         Sample from N(0, 1), concatenate with the point on the latent space,
@@ -52,6 +53,7 @@ class GAN(tf.keras.Model):
         y_r = self.G(r)
         return y_r
 
+    @tf.contrib.eager.defun
     def d_predict(self, x, y):
         """
         Predict whether the pair is generic or synthesized.
@@ -113,3 +115,6 @@ class GAN(tf.keras.Model):
 
                 optimizer.apply_gradients(zip(var_d, grad_d), tf.train.get_or_create_global_step())
                 optimizer.apply_gradients(zip(var_g, grad_g), tf.train.get_or_create_global_step())
+
+            self.D.save_weights('./D.h5')
+            self.G.save_weights('./G.h5')
