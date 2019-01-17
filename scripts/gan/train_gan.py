@@ -15,11 +15,19 @@ import gan
 BATCH_SZ = 2048
 
 # load_dataset
-df = pd.read_csv('first_10k.dat', sep='\t', quotechar='\'')
+df = pd.read_csv('first_10k.dat', sep='\t', quotechar='\'', header=[0,1])
+df = df.loc[(len(df[0]) < 62) & (len(df[1]) < 62)]
 xs = df.values[:, 0]
 ys = df.values[:, 1]
+xs = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, xs)
+ys = np.apply_along_axis(lambda x: 'G' + y + 'E', 0, xs)
 xs = tf.convert_to_tensor(xs)
 ys = tf.convert_to_tensor(ys)
+
+f_handle = open('lang_obj.p', 'rb')
+lang_obj = pickle.load(f_handle)
+f_handle.close()
+vocab_size = len(lang_obj.idx2ch) + 1
 
 # define models
 gan_box = gan.ConditionalGAN(batch_sz = 2048)
