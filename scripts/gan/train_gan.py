@@ -10,13 +10,15 @@ import lang
 import nets
 import bayesian
 import gan
-
+import swifter
 # constants
 BATCH_SZ = 2048
 
 # load_dataset
-df = pd.read_csv('first_10k.dat', sep='\t', quotechar='\'', header=[0,1])
-df = df.loc[(len(df[0]) < 62) & (len(df[1]) < 62)]
+df = pd.read_csv('first_10k.dat', sep='\t', quotechar='\'', header=None, names=['0', '1'])
+df['0'] = df['0'].swifter.apply(lambda x: x if len(x) <= 62 else np.nan)
+df['1'] = df['1'].swifter.apply(lambda x: x if len(x) <= 62 else np.nan)
+
 xs = df.values[:, 0]
 ys = df.values[:, 1]
 xs = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, xs)
