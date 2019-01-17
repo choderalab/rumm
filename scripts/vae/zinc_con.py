@@ -102,7 +102,6 @@ def seq_loss(y, y_hat):
     return tf.reduce_mean(loss_)
 
 
-
 # train it!
 # loop through the epochs
 alpha = 1.5

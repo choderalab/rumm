@@ -5,7 +5,7 @@ tf.enable_eager_execution()
 from sklearn.preprocessing import StandardScaler
 import pickle
 import sys
-sys.path.append('../rumm')
+sys.path.append('../../rumm')
 import lang
 import nets
 import bayesian

@@ -109,49 +109,51 @@ for epoch in range(1000):
     total_loss = 0 # initialize the total loss at the beginning to be 0
     # loop through the batches
     for (batch, (xs, ys, fps)) in enumerate(ds):
-        # TODO
+        # TODO: make these work in tf.while_loop
         # one training batch
-        with tf.GradientTape(persistent=True) as tape: # for descent
-            # training
+        with tf.GradientTape(persistent=True) as tape: # for grad descent
+            # encoder
             eo_f, h_f = enc_f(xs)
             eo_b, h_b = enc_b(xs)
             attention_weights = attention(eo_f, eo_b, h_f, h_b)
             attention_weights = fcuk(attention_weights)
 
+            # sample from the latent space
             mean = d_mean(attention_weights)
             log_var = d_log_var(attention_weights)
-
             z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) + mean
 
+            # property prediction
             ys_hat = fcuk_props(mean)
             fp_hat = fcuk_fp(mean)
 
+            # loss function for prop and fp prediction
             loss0 = tf.losses.mean_squared_error(ys, ys_hat)
             loss1 = tf.losses.mean_squared_error(fps, fp_hat)
+
+            # decoder
             dec_input = tf.expand_dims([lang_obj.ch2idx['G']] * BATCH_SZ, 1)
             hidden = decoder.initialize_hidden_state()
             loss2 = 1e-8
-
             for t in range(xs.shape[1]):
                 ch_hat, hidden = decoder(dec_input, z, hidden)
                 loss2 += seq_loss(xs[:, t], ch_hat)
                 dec_input = tf.expand_dims(xs[:, t], 1)
 
+            # kl loss
             loss3 = tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=1))
 
-
-
+            # the sum of the weighted loss
             lt = w0_task * loss0 + w1_task * loss1 + w2_task * loss2 + w3_task * loss3
 
         # start grad norm
         variables = enc_f.variables + enc_b.variables + fcuk.variables +\
                     attention.variables + fcuk_props.variables + decoder.variables + fcuk_fp.variables +\
                     d_mean.variables + d_log_var.variables
-
         gradients = tape.gradient(lt, variables)
-
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
 
+        # start normalizing
         if batch % 10 == 0:
             if batch == 0:
                 loss0_int = loss0
@@ -233,7 +235,7 @@ for epoch in range(1000):
                    lambda: update())
 
 
-    if not np.is_nan(lt.numpy()):
+    if not np.isnan(lt.numpy()):
         fcuk.save_weights('./fcuk.h5')
         enc_f.save_weights('./enc_f.h5')
         enc_b.save_weights('./enc_b.h5')
