@@ -60,22 +60,35 @@ attention.load_weights('weights/attention_weights.h5')
 fcuk.load_weights('weights/fcuk.h5')
 d_mean.load_weights('weights/d_mean.h5')
 
-# load x
-eo_f, h_f = enc_f(xs)
-eo_b, h_b = enc_b(xs)
-attention_weights = attention(eo_f, eo_b, h_f, h_b)
-attention_weights = fcuk(attention_weights)
-x_mean = d_mean(attention_weights)
 
-# load y
-eo_f, h_f = enc_f(ys)
-eo_b, h_b = enc_b(ys)
-attention_weights = attention(eo_f, eo_b, h_f, h_b)
-attention_weights = fcuk(attention_weights)
-y_mean = d_mean(attention_weights)
 
-np.save('x_mean', x_mean.numpy())
-np.save('y_mean', y_mean.numpy())
+ds = tf.data.Dataset.from_tensor_slices((xs, ys))
+ds = ds.apply(tf.contrib.data.batch_and_drop_remainder(BATCH_SZ))
+for (batch, (xs, ys)) in enumerate(ds):
+    # load x
+    eo_f, h_f = enc_f(xs)
+    eo_b, h_b = enc_b(xs)
+    attention_weights = attention(eo_f, eo_b, h_f, h_b)
+    attention_weights = fcuk(attention_weights)
+    x_mean = d_mean(attention_weights)
+
+    # load y
+    eo_f, h_f = enc_f(ys)
+    eo_b, h_b = enc_b(ys)
+    attention_weights = attention(eo_f, eo_b, h_f, h_b)
+    attention_weights = fcuk(attention_weights)
+    y_mean = d_mean(attention_weights)
+
+    if batch == 0:
+        x_out = x_mean
+        y_out = y_mean
+
+    else:
+        x_out = tf.concat([x_out, x_mean], axis=0)
+        y_out = tf.concat([y_out, y_mean], axis=0)
+
+np.save('x_mean', x_out.numpy())
+np.save('y_mean', y_out.numpy())
 # train
 gan_box.load_dataset(x_mean, y_mean)
 gan_box.train()
