@@ -111,7 +111,6 @@ class Encoder(tf.keras.Model):
         self.gru_f = gru(self.enc_units)
         self.reverse = reverse
 
-    @tf.contrib.eager.defun
     def __call__(self, x_tensor):
         x_tensor = self.embedding(x_tensor)
         if self.reverse == True:
