@@ -48,9 +48,9 @@ class FullyConnectedUnits(tf.keras.Model):
         super(FullyConnectedUnits, self).__init__()
         self.config = config
         self.callables = ['C' + str(idx) for idx in range(len(self.config))]
-        self.build_net()
         self.fixed = False
         self.dropout_list = []
+        self.build_net()
 
     def build_net(self):
         """
