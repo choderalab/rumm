@@ -50,6 +50,7 @@ class FullyConnectedUnits(tf.keras.Model):
         self.callables = ['C' + str(idx) for idx in range(len(self.config))]
         self.build_net()
         self.fixed = False
+        self.dropout_list = []
 
     def build_net(self):
         """
@@ -75,7 +76,8 @@ class FullyConnectedUnits(tf.keras.Model):
 
             elif isinstance(value, float):
                 assert (value < 1), "Can\'t have dropouts larger than one."
-                setattr(self, 'C' + str(idx), lambda x: tf.layers.dropout(x, rate=value, training=True))
+                setattr(self, 'C' + str(idx), lambda x: tf.nn.dropout(x, value))
+                self.dropout_list.append('C' + str(idx))
 
 
     @tf.contrib.eager.defun
@@ -88,10 +90,9 @@ class FullyConnectedUnits(tf.keras.Model):
         self.__call__(tf.zeros(x_shape))
 
     def switch_to_test(self):
-        for callable in self.callables:
-            callable_ = getattr(self, callable)
-            if hasattr(callable_, 'training'):
-                setattr(callable_, False)
+        for callable in self.dropout_list:
+            setattr(self, callable, lambda x: x)
+
 
     @property
     def input_shape(self):
