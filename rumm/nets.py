@@ -14,7 +14,7 @@ import logging
 import sys
 
 # helper functions
-def gru(units):
+def gru(units, reverse = False):
     # CuDNNGRU is much faster than gru, but is only compatiable when GPU is available.
     if tf.test.is_gpu_available():
         return tf.keras.layers.CuDNNGRU(units,
@@ -23,13 +23,15 @@ def gru(units):
                                     recurrent_initializer='glorot_uniform',
                                     kernel_regularizer=tf.keras.regularizers.l2(l=0.01),
                                     recurrent_regularizer=tf.keras.regularizers.l1(l=0.001),
-                                    bias_regularizer=tf.keras.regularizers.l2(l=0.01))
+                                    bias_regularizer=tf.keras.regularizers.l2(l=0.01),
+                                    go_backwards=reverse)
     else:
         return tf.keras.layers.GRU(units,
                                return_sequences=True,
                                return_state=True,
                                recurrent_activation='sigmoid',
                                recurrent_initializer='glorot_uniform')
+
 
 # utility classes
 class FullyConnectedUnits(tf.keras.Model):
@@ -73,7 +75,7 @@ class FullyConnectedUnits(tf.keras.Model):
 
             elif isinstance(value, float):
                 assert (value < 1), "Can\'t have dropouts larger than one."
-                setattr(self, 'C' + str(idx), lambda x: tf.layers.dropout(x, rate=value))
+                setattr(self, 'C' + str(idx), lambda x: tf.layers.dropout(x, rate=value, training=True))
 
 
     @tf.contrib.eager.defun
@@ -84,6 +86,12 @@ class FullyConnectedUnits(tf.keras.Model):
 
     def initialize(self, x_shape):
         self.__call__(tf.zeros(x_shape))
+
+    def switch_to_test(self):
+        for callable in self.callables:
+            callable_ = getattr(self, callable)
+            if hasattr(callable_, 'training'):
+                setattr(callable_, False)
 
     @property
     def input_shape(self):
@@ -108,15 +116,14 @@ class Encoder(tf.keras.Model):
         self.batch_sz = batch_sz
         self.enc_units = enc_units
         self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-        self.gru_f = gru(self.enc_units)
-        self.reverse = reverse
+        if self.reverse == False:
+            self.gru_f = gru(self.enc_units)
+        elif self.reverse == True:
+            self.gru_f = gru(self.enc_units, True)
 
     def __call__(self, x_tensor):
         x_tensor = self.embedding(x_tensor)
-        if self.reverse == True:
-            x_tensor = tf.reverse(x_tensor, [1])
         output, state = self.gru_f(x_tensor, initial_state = tf.zeros((self.batch_sz, self.enc_units)))
-        # output, state = self.gru_f(x_tensor)
         return output, state
 
     def initialize(self, x_shape):
@@ -136,7 +143,6 @@ class Decoder(tf.keras.Model):
         self.W2 = tf.keras.layers.Dense(self.dec_units)
         self.V = tf.keras.layers.Dense(1)
 
-    @tf.contrib.eager.defun
     def __call__(self, x, hidden, enc_output):
         hidden_with_time_axis = tf.expand_dims(hidden, 1)
         score = tf.nn.tanh(self.W1(enc_output) + self.W2(hidden_with_time_axis))
