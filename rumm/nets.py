@@ -21,9 +21,9 @@ def gru(units):
                                     return_sequences=True,
                                     return_state=True,
                                     recurrent_initializer='glorot_uniform',
-                                    kernel_regularizer=tf.keras.regularizers.l2(l=0.1),
-                                    recurrent_regularizer=tf.keras.regularizers.l2(l=0.1),
-                                    bias_regularizer=tf.keras.regularizers.l2(l=0.1))
+                                    kernel_regularizer=tf.keras.regularizers.l2(l=0.01),
+                                    recurrent_regularizer=tf.keras.regularizers.l1(l=0.001),
+                                    bias_regularizer=tf.keras.regularizers.l2(l=0.01))
     else:
         return tf.keras.layers.GRU(units,
                                return_sequences=True,
@@ -68,17 +68,18 @@ class FullyConnectedUnits(tf.keras.Model):
             elif isinstance(value, int):
                 assert (value >= 1), "Can\'t have fewer than one neuron."
                 setattr(self, 'C' + str(idx), tf.keras.layers.Dense(value,
-                  kernel_regularizer = tf.keras.regularizers.l2(0.01), 
+                  kernel_regularizer = tf.keras.regularizers.l2(0.01),
                   bias_regularizer = tf.keras.regularizers.l2(0.01)))
 
             elif isinstance(value, float):
                 assert (value < 1), "Can\'t have dropouts larger than one."
                 setattr(self, 'C' + str(idx), lambda x: tf.layers.dropout(x, rate=value))
 
+
+    @tf.contrib.eager.defun
     def __call__(self, x_tensor):
         for callable in self.callables:
             x_tensor = getattr(self, callable)(x_tensor)
-
         return x_tensor
 
     def initialize(self, x_shape):
@@ -110,6 +111,7 @@ class Encoder(tf.keras.Model):
         self.gru_f = gru(self.enc_units)
         self.reverse = reverse
 
+    @tf.contrib.eager.defun
     def __call__(self, x_tensor):
         x_tensor = self.embedding(x_tensor)
         if self.reverse == True:
@@ -135,6 +137,7 @@ class Decoder(tf.keras.Model):
         self.W2 = tf.keras.layers.Dense(self.dec_units)
         self.V = tf.keras.layers.Dense(1)
 
+    @tf.contrib.eager.defun
     def __call__(self, x, hidden, enc_output):
         hidden_with_time_axis = tf.expand_dims(hidden, 1)
         score = tf.nn.tanh(self.W1(enc_output) + self.W2(hidden_with_time_axis))
@@ -161,6 +164,7 @@ class AttentionDecoder(tf.keras.Model):
         self.fc = tf.keras.layers.Dense(vocab_size)
         self.gru = gru(self.dec_units)
 
+    @tf.contrib.eager.defun
     def __call__(self, x, hidden, attention_weights):
         x = self.embedding(x)
         x = tf.concat([tf.expand_dims(attention_weights, 1), x], axis=-1)
@@ -186,6 +190,7 @@ class DeepAttentionDecoder(tf.keras.Model):
         self.D3 = tf.keras.layers.Dense(dec_units)
         self.batch_sz = batch_sz
 
+    @tf.contrib.eager.defun
     def __call__(self, x, attention_weights, hidden):
         attention_weights = tf.nn.leaky_relu(self.D0(attention_weights))
         attention_weights = tf.nn.leaky_relu(self.D1(attention_weights))
@@ -220,6 +225,7 @@ class BidirectionalAttention(tf.keras.Model):
         self.W2_b = tf.keras.layers.Dense(self.units)
         self.V = tf.keras.layers.Dense(1)
 
+    @tf.contrib.eager.defun
     def __call__(self, eo_f, eo_b, h_f, h_b):
         ht_f = tf.expand_dims(h_f, 1)
         ht_b = tf.expand_dims(h_b, 1)
@@ -248,6 +254,7 @@ class BidirectionalWideAttention(tf.keras.Model):
         self.W2_b = tf.keras.layers.Dense(self.units)
         self.V = tf.keras.layers.Dense(1)
 
+    @tf.contrib.eager.defun
     def __call__(self, eo_f, eo_b, h_f, h_b):
         ht_f = tf.expand_dims(h_f, 1)
         ht_b = tf.expand_dims(h_b, 1)
@@ -263,3 +270,26 @@ class BidirectionalWideAttention(tf.keras.Model):
 
     def initialize(self, eo_shape, h_shape):
         self.__call__(tf.zeros(eo_shape), tf.zeros(eo_shape), tf.zeros(h_shape), tf.zeros(h_shape))
+
+
+class OneHotDecoder(tf.keras.Model):
+    def __init__(self, vocab_size, dec_units = 32, batch_sz = 128, max_len = 64):
+        super(OneHotDecoder, self).__init__()
+        self.vocab_size = vocab_size
+        self.dec_units = dec_units
+        self.batch_sz = batch_sz
+        self.gru = nets.gru(self.dec_units)
+        self.gru1 = nets.gru(self.dec_units)
+        self.max_len = max_len
+        self.fc = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(vocab_size))
+        self.D = tf.keras.layers.Dense(dec_units)
+
+    def __call__(self, x):
+        x = self.D(x)
+        x = tf.expand_dims(x, 1)
+        x = tf.tile(x, [1, self.max_len, 1])
+        x_0, hidden_0 = self.gru(x)
+        x_1, hidden_1 = self.gru1(x_0)
+        x = tf.concat([x_0, x_1], -1)
+        x = self.fc(x)
+        return x
