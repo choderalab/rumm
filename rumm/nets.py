@@ -76,9 +76,8 @@ class FullyConnectedUnits(tf.keras.Model):
 
             elif isinstance(value, float):
                 assert (value < 1), "Can\'t have dropouts larger than one."
-                setattr(self, 'C' + str(idx), lambda x: tf.nn.dropout(x, value))
+                setattr(self, 'C' + str(idx), tf.layers.Dropout(value))
                 self.dropout_list.append('C' + str(idx))
-
 
     @tf.contrib.eager.defun
     def __call__(self, x_tensor):
