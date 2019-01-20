@@ -116,9 +116,9 @@ class Encoder(tf.keras.Model):
         self.batch_sz = batch_sz
         self.enc_units = enc_units
         self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-        if self.reverse == False:
+        if reverse == False:
             self.gru_f = gru(self.enc_units)
-        elif self.reverse == True:
+        elif reverse == True:
             self.gru_f = gru(self.enc_units, True)
 
     def __call__(self, x_tensor):
