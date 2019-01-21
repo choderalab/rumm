@@ -79,7 +79,6 @@ class FullyConnectedUnits(tf.keras.Model):
                 setattr(self, 'C' + str(idx), tf.layers.Dropout(value))
                 self.dropout_list.append('C' + str(idx))
 
-    @tf.contrib.eager.defun
     def __call__(self, x_tensor):
         for callable in self.callables:
             x_tensor = getattr(self, callable)(x_tensor)
