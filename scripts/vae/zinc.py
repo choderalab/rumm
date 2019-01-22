@@ -61,12 +61,13 @@ enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True,
     enc_units = 256)
 attention = nets.BidirectionalWideAttention(128)
 fcuk = nets.FullyConnectedUnits([128, 'leaky_relu', 0.10, 1024, 'leaky_relu',
-  0.25, 512, 'leaky_relu', 32])
+  0.25, 512])
 d_mean = nets.FullyConnectedUnits([16])
 d_log_var = nets.FullyConnectedUnits([16])
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
-decoder = nets.DeepAttentionDecoder(vocab_size=vocab_size, batch_sz = BATCH_SZ)
+decoder = nets.decoder = OneHotDecoder(vocab_size=vocab_size, dec_units = 256)
+bypass_v_f = nets.FullyConnectedUnits([1])
 
 # convert to tensor
 x_tr = tf.convert_to_tensor(x_tr)
@@ -101,69 +102,73 @@ w1_task = tf.Variable(1.0, dtype=tf.float32)
 w2_task = tf.Variable(1.0, dtype=tf.float32)
 w3_task = tf.Variable(1.0, dtype=tf.float32)
 
-optimizer = tf.train.AdamOptimizer(5e-5)
-alpha = 1.5
+optimizer = tf.train.AdamOptimizer(1e-3)
+alpha = 0.5
 
 for epoch in range(1000):
-
-    total_loss = 0 # initialize the total loss at the beginning to be 0
     # loop through the batches
     for (batch, (xs, ys, fps)) in enumerate(ds):
-        # TODO: make these work in tf.while_loop
+        # TODO
         # one training batch
-        with tf.GradientTape(persistent=True) as tape: # for grad descent
-            # encoder
+        n_iter = tf.constant(epoch * int(xs.shape[0]) + batch * BATCH_SZ, dtype=tf.float32)
+        anneal_step = tf.constant(200000.0, dtype=tf.float32)
+
+        with tf.GradientTape(persistent=True) as tape: # for descent
+            # training
+            kl_anneal = tf.cond(n_iter < anneal_step,
+                                lambda: tf.math.sin(tf.div(n_iter, anneal_step) * 0.5 * tf.constant(np.pi, dtype=tf.float32)),
+                                lambda: tf.constant(1.0, dtype=tf.float32))
+
             eo_f, h_f = enc_f(xs)
             eo_b, h_b = enc_b(xs)
+
+            bypass_xs_f = tf.layers.flatten(bypass_v_f(eo_f))
+
             attention_weights = attention(eo_f, eo_b, h_f, h_b)
-            attention_weights = fcuk(attention_weights)
+            x = fcuk(attention_weights)
+            x = tf.concat([x, bypass_xs_f], axis=-1)
 
-            # sample from the latent space
-            mean = d_mean(attention_weights)
-            log_var = d_log_var(attention_weights)
-            z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) + mean
+            mean = d_mean(x)
+            log_var = d_log_var(x)
+            z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) * kl_anneal + mean
 
-            # property prediction
             ys_hat = fcuk_props(mean)
             fp_hat = fcuk_fp(mean)
 
-            # loss function for prop and fp prediction
-            loss0 = tf.losses.mean_squared_error(ys, ys_hat)
-            loss1 = tf.losses.mean_squared_error(fps, fp_hat)
+            loss0 = tf.clip_by_value(tf.losses.mean_squared_error(ys, ys_hat),
+                                     0.0, 1e5)
+            loss1 = tf.clip_by_value(tf.losses.mean_squared_error(fps, fp_hat),
+                                     0.0, 1e5)
 
-            # decoder
-            dec_input = tf.expand_dims([lang_obj.ch2idx['G']] * BATCH_SZ, 1)
-            hidden = decoder.initialize_hidden_state()
-            loss2 = 1e-8
-            for t in range(xs.shape[1]):
-                ch_hat, hidden = decoder(dec_input, z, hidden)
-                loss2 += seq_loss(xs[:, t], ch_hat)
-                dec_input = tf.expand_dims(xs[:, t], 1)
+            xs_bar = decoder(z)
 
-            # kl loss
-            loss3 = tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=1))
+            loss2 = tf.clip_by_value(
+                    tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = xs, logits = xs_bar)), 0.0, 1e5)
+            loss3 = tf.clip_by_value(kl_anneal * tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var))),
+                                     0.0, 1e5)
 
-            # the sum of the weighted loss
             lt = w0_task * loss0 + w1_task * loss1 + w2_task * loss2 + w3_task * loss3
 
         # start grad norm
         variables = enc_f.variables + enc_b.variables + fcuk.variables +\
                     attention.variables + fcuk_props.variables + decoder.variables + fcuk_fp.variables +\
-                    d_mean.variables + d_log_var.variables
+                    d_mean.variables + d_log_var.variables + bypass_v_f.variables
+
         gradients = tape.gradient(lt, variables)
+
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
 
-        # start normalizing
         if batch % 10 == 0:
             if batch == 0:
                 loss0_int = loss0
                 loss1_int = loss1
                 loss2_int = loss2
                 loss3_int = loss3
+                # loss4_int = loss4
 
             print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
             print(loss0.numpy(), loss1.numpy(), loss2.numpy(), loss3.numpy())
-            print(w0_task.numpy(), w1_task.numpy(), w2_task.numpy(), w3_task.numpy())
+            # print(w0_task.numpy(), w1_task.numpy(), w2_task.numpy(), w3_task.numpy())
 
             with tf.GradientTape(persistent=True, watch_accessed_variables=False) as tape1:
                 tape1.watch(w0_task)
@@ -192,7 +197,6 @@ for epoch in range(1000):
                 l3_tilde = tf.clip_by_norm(tf.div_no_nan(loss3, loss3_int),
                     1e5)
 
-
                 l_tilde_bar = tf.div_no_nan(l0_tilde + l1_tilde + l2_tilde + l3_tilde, 4.0)
 
                 r0 = tf.div_no_nan(l0_tilde, l_tilde_bar)
@@ -204,6 +208,7 @@ for epoch in range(1000):
                          tf.math.abs(gw1 - tf.stop_gradient(gw_bar * tf.math.pow(r1, alpha))) +\
                          tf.math.abs(gw2 - tf.stop_gradient(gw_bar * tf.math.pow(r2, alpha))) +\
                          tf.math.abs(gw3 - tf.stop_gradient(gw_bar * tf.math.pow(r3, alpha)))
+
 
                 l_grad = tf.clip_by_norm(l_grad, 1e2)
 
@@ -218,6 +223,7 @@ for epoch in range(1000):
 
             @tf.contrib.eager.defun
             def update():
+
                 optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
                 optimizer.apply_gradients([(delta_l_grad_1, w1_task)])
                 optimizer.apply_gradients([(delta_l_grad_2, w2_task)])
@@ -225,15 +231,14 @@ for epoch in range(1000):
 
                 w_total = w0_task + w1_task + w2_task + w3_task
 
-                w0_task.assign(w0_task * tf.div_no_nan(4.0, w_total))
-                w1_task.assign(w1_task * tf.div_no_nan(4.0, w_total))
-                w2_task.assign(w2_task * tf.div_no_nan(4.0, w_total))
-                w3_task.assign(w3_task * tf.div_no_nan(4.0, w_total))
+                w0_task.assign(tf.clip_by_value(w0_task * tf.div_no_nan(4.0, w_total), 0.0, 1e5))
+                w1_task.assign(tf.clip_by_value(w1_task * tf.div_no_nan(4.0, w_total), 0.0, 1e5))
+                w2_task.assign(tf.clip_by_value(w2_task * tf.div_no_nan(4.0, w_total), 0.0, 1e5))
+                w3_task.assign(tf.clip_by_value(w3_task * tf.div_no_nan(4.0, w_total), 0.0, 1e5))
 
             tf.cond(tf.debugging.is_nan(delta_l_grad_0 + delta_l_grad_1 + delta_l_grad_2 + delta_l_grad_3),
                    lambda: None,
                    lambda: update())
-
 
     if not np.isnan(lt.numpy()):
         fcuk.save_weights('./fcuk.h5')
@@ -245,3 +250,4 @@ for epoch in range(1000):
         d_mean.save_weights('./d_mean.h5')
         d_log_var.save_weights('./d_log_var.h5')
         decoder.save_weights('./decoder.h5')
+        bypass_v_f.save_weights('./bypass_v_f.h5')

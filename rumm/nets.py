@@ -21,9 +21,9 @@ def gru(units, reverse = False):
                                     return_sequences=True,
                                     return_state=True,
                                     recurrent_initializer='glorot_uniform',
-                                    kernel_regularizer=tf.keras.regularizers.l2(l=0.01),
+                                    kernel_regularizer=tf.keras.regularizers.l1(l=0.01),
                                     recurrent_regularizer=tf.keras.regularizers.l1(l=0.001),
-                                    bias_regularizer=tf.keras.regularizers.l2(l=0.01),
+                                    bias_regularizer=tf.keras.regularizers.l1(l=0.01),
                                     go_backwards=reverse)
     else:
         return tf.keras.layers.GRU(units,
@@ -31,6 +31,46 @@ def gru(units, reverse = False):
                                return_state=True,
                                recurrent_activation='sigmoid',
                                recurrent_initializer='glorot_uniform')
+
+def lstm(units):
+    # CuDNNGRU is much faster than gru, but is only compatiable when GPU is available.
+    if tf.test.is_gpu_available():
+        return tf.keras.layers.CuDNNLSTM(units,
+                                    return_sequences=True,
+                                    return_state=True,
+                                    recurrent_initializer='glorot_normal',
+                                    kernel_regularizer=tf.keras.regularizers.l1(l=0.001),
+                                    recurrent_regularizer=tf.keras.regularizers.l1(l=0.001),
+                                    bias_regularizer=tf.keras.regularizers.l1(l=0.001))
+    else:
+        return tf.keras.layers.LSTM(units,
+                               return_sequences=True,
+                               return_state=True,
+                               recurrent_activation='sigmoid',
+                               recurrent_initializer='glorot_uniform')
+
+
+class OneHotDecoder(tf.keras.Model):
+    def __init__(self, vocab_size, dec_units = 32, batch_sz = 128, max_len = 64):
+        super(OneHotDecoder, self).__init__()
+        self.vocab_size = vocab_size
+        self.dec_units = dec_units
+        self.batch_sz = batch_sz
+        self.lstm = lstm(self.dec_units)
+        self.max_len = max_len
+        self.fc = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(vocab_size))
+        self.D = tf.keras.layers.Dense(2 * dec_units)
+        self.D1 = tf.keras.layers.Dense(2 * dec_units)
+
+
+    def __call__(self, x):
+        x = self.D(x)
+        x = self.D1(x)
+        x = tf.expand_dims(x, 1)
+        x = tf.tile(x, [1, self.max_len, 1])
+        x, _, _ = self.lstm(x)
+        x_ = self.fc(x)
+        return x_
 
 
 # utility classes
@@ -79,6 +119,7 @@ class FullyConnectedUnits(tf.keras.Model):
                 setattr(self, 'C' + str(idx), tf.layers.Dropout(value))
                 self.dropout_list.append('C' + str(idx))
 
+    @tf.contrib.eager.defun
     def __call__(self, x_tensor):
         for callable in self.callables:
             x_tensor = getattr(self, callable)(x_tensor)
