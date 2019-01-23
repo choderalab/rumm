@@ -5,13 +5,13 @@ tf.enable_eager_execution()
 from sklearn.preprocessing import StandardScaler
 import pickle
 import sys
-sys.path.append('../rumm')
+sys.path.append('../../rumm')
 import lang
 import nets
 import bayesian
 
 # constants
-BATCH_SZ = 2048
+BATCH_SZ = 512
 
 '''
 zinc_df = pd.read_csv('res.csv', sep='\t')
@@ -66,7 +66,7 @@ d_mean = nets.FullyConnectedUnits([16])
 d_log_var = nets.FullyConnectedUnits([16])
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
-decoder = nets.decoder = OneHotDecoder(vocab_size=vocab_size, dec_units = 256)
+decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 256)
 bypass_v_f = nets.FullyConnectedUnits([1])
 
 # convert to tensor
