@@ -159,16 +159,14 @@ for epoch in range(1000):
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
 
         if batch % 10 == 0:
-            if batch == 0:
+            if batch % 100 == 0: # update the initial loss every 100 batches
                 loss0_int = loss0
                 loss1_int = loss1
                 loss2_int = loss2
                 loss3_int = loss3
-                # loss4_int = loss4
 
             print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
             print(loss0.numpy(), loss1.numpy(), loss2.numpy(), loss3.numpy())
-            # print(w0_task.numpy(), w1_task.numpy(), w2_task.numpy(), w3_task.numpy())
 
             with tf.GradientTape(persistent=True, watch_accessed_variables=False) as tape1:
                 tape1.watch(w0_task)
@@ -213,28 +211,31 @@ for epoch in range(1000):
                 l_grad = tf.clip_by_norm(l_grad, 1e2)
 
             delta_l_grad_0 = tf.clip_by_norm(tape1.gradient(l_grad, w0_task),
-                1e5)
+                1e2)
             delta_l_grad_1 = tf.clip_by_norm(tape1.gradient(l_grad, w1_task),
-                1e5)
+                1e2)
             delta_l_grad_2 = tf.clip_by_norm(tape1.gradient(l_grad, w2_task),
-                1e5)
+                1e2)
             delta_l_grad_3 = tf.clip_by_norm(tape1.gradient(l_grad, w3_task),
-                1e5)
+                1e2)
 
             @tf.contrib.eager.defun
             def update():
-
                 optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
                 optimizer.apply_gradients([(delta_l_grad_1, w1_task)])
                 optimizer.apply_gradients([(delta_l_grad_2, w2_task)])
                 optimizer.apply_gradients([(delta_l_grad_3, w3_task)])
 
-                w_total = w0_task + w1_task + w2_task + w3_task
+                w0_task.assign(tf.clip_by_value(w0, 0.0, 2.0))
+                w1_task.assign(tf.clip_by_value(w1, 0.0, 2.0))
+                w2_task.assign(tf.clip_by_value(w2, 0.0, 2.0))
+                w3_task.assign(tf.clip_by_value(w3, 0.0, 2.0))
 
-                w0_task.assign(tf.clip_by_value(w0_task * tf.div_no_nan(4.0, w_total), 0.0, 1e5))
-                w1_task.assign(tf.clip_by_value(w1_task * tf.div_no_nan(4.0, w_total), 0.0, 1e5))
-                w2_task.assign(tf.clip_by_value(w2_task * tf.div_no_nan(4.0, w_total), 0.0, 1e5))
-                w3_task.assign(tf.clip_by_value(w3_task * tf.div_no_nan(4.0, w_total), 0.0, 1e5))
+                w_total = w0_task + w1_task + w2_task + w3_task
+                w0_task.assign(w0_task * tf.div_no_nan(4.0, w_total))
+                w1_task.assign(w1_task * tf.div_no_nan(4.0, w_total))
+                w2_task.assign(w2_task * tf.div_no_nan(4.0, w_total))
+                w3_task.assign(w3_task * tf.div_no_nan(4.0, w_total))
 
             tf.cond(tf.debugging.is_nan(delta_l_grad_0 + delta_l_grad_1 + delta_l_grad_2 + delta_l_grad_3),
                    lambda: None,
