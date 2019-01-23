@@ -8,11 +8,7 @@ import tensorflow as tf
 tf.enable_eager_execution()
 
 class Lang:
-    """
-    Translates the characters of smiles into a index representation.
-
-
-    """
+    """Translates the characters of smiles into a index representation."""
     def __init__(self, lang):
         self.lang = lang
         self.ch2idx = {}
@@ -22,6 +18,7 @@ class Lang:
         self.lang = None
 
     def create_idx(self):
+        """ """
         # exhaust the vocabulary in the smiles collection
         for smiles in self.lang:
             self.vocab.update(list(smiles))
@@ -43,8 +40,19 @@ class Lang:
 
 
 def preprocessing(smiles_array, lang, max_len = 64):
-    """
-    Preprocess a smiles into a continuous matrix representation.
+    """Preprocess a smiles into a continuous matrix representation.
+
+    Parameters
+    ----------
+    smiles_array :
+        param lang:
+    max_len :
+        Default value = 64)
+    lang :
+        
+
+    Returns
+    -------
 
     """
     x_tensor = [[lang.ch2idx[ch] for ch in list(smiles)] for smiles in smiles_array]

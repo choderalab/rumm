@@ -21,14 +21,20 @@ import nets
 # utility classes
 # ===============
 class ConditionalGAN(tf.keras.Model):
-    """
-    Generative adversary network.
-
+    """Generative adversary network.
+    
     Generator: Takes an input from the source latent space, sample from N(0, 1),
     and concatenate together, to feed into a neural network, to produce a target
     point on latent space.
-
+    
     Discriminator: Discriminate whether the molecule pair is generic or synthesized.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
     """
     def __init__(self,
                  g_config = [512, 'leaky_relu', 1024, 'leaky_relu', 1024, 'leaky_relu', 8],
@@ -43,9 +49,16 @@ class ConditionalGAN(tf.keras.Model):
 
     @tf.contrib.eager.defun
     def g_sample(self, x):
-        """
-        Sample from N(0, 1), concatenate with the point on the latent space,
+        """Sample from N(0, 1), concatenate with the point on the latent space,
         and transform it using the generator.
+
+        Parameters
+        ----------
+        x :
+            
+
+        Returns
+        -------
 
         """
         r = tf.clip_by_norm(tf.random_normal(x.shape), 1e5)
@@ -55,31 +68,35 @@ class ConditionalGAN(tf.keras.Model):
 
     @tf.contrib.eager.defun
     def d_predict(self, x, y):
-        """
-        Predict whether the pair is generic or synthesized.
+        """Predict whether the pair is generic or synthesized.
 
         Parameters
         ----------
-        x : the source molecules
-        y : the target molecules
+        x :
+            type x: the source molecules
+        y :
+            type y: the target molecules
 
         Returns
         -------
-        z : the label of the molecule pairs of being whether generic (1) or
-            artificial (0).
+
         """
         pair = tf.concatenate([x, y], axis=1)
         z = self.D(pair)
         return z
 
     def load_dataset(self, x, y):
-        """
-        Load dataset into training.
+        """Load dataset into training.
 
         Parameters
         ----------
-        x : tf.Tensor the source molecules projected on the latent space.
-        y : tf.Tensor the target molecules projected on the latent space.
+        x :
+            param y:
+        y :
+            
+
+        Returns
+        -------
 
         """
         ds = tf.data.Dataset.from_tensor_slices((x_tr, y_tr)).shuffle(y_tr.shape[0])
@@ -87,10 +104,7 @@ class ConditionalGAN(tf.keras.Model):
         self.ds = ds
 
     def train(self):
-        """
-        Train the network.
-
-        """
+        """Train the network."""
         optimizer=tf.train.AdamOptimizer() # use adam optimizer here
         for epoch in range(self.n_epochs): # loop through epochs
             for (batch, (xs, ys)) in enumerate(self.ds): # loop through datasets

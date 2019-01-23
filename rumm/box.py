@@ -12,16 +12,7 @@ import logging
 from typing import *
 
 class Box:
-    """
-    The wrapper of all layers in the model.
-
-    Parameters
-    ----------
-    models : a nested structure of models
-    n_epochs : int, number of epochs
-    batch_sz : int, batch size
-    loss_fn : a function that describe the loss during training
-    """
+    """The wrapper of all layers in the model."""
 
     def __init__(self, flow, models: list,
                  n_epochs=10, batch_sz=1,
@@ -38,14 +29,20 @@ class Box:
     def train(self, x_tr, y_tr,
                 optimizer=tf.train.AdamOptimizer(),
                 loss_fn=tf.losses.mean_squared_error):
-        """
-        Train the model with training set, x and y
+        """Train the model with training set, x and y
 
         Parameters
         ----------
-        flow : the function which takes the data and the model, to make a prediction
-        x_tr : np.ndarry
-        y_tr : np.ndarry, has to match the number of samples in x_tr
+        x_tr : tf.Tensor or np.ndarray, training data
+        y_tr : tf.Tensor or np.ndarray, training labels
+        optimizer :
+            Default value = tf.train.AdamOptimizer())
+        loss_fn :
+            Default value = tf.losses.mean_squared_error)
+
+        Returns
+        -------
+
         """
         # convert them into tensors.
         x_tr = tf.convert_to_tensor(x_tr)
@@ -80,13 +77,16 @@ class Box:
                     logging.info("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(loss.numpy())))
 
     def predict(self, x_te):
-        """
-        Make predictions on the x of test set.
+        """Make predictions on the x of test set.
 
         Parameters
         ----------
-        flow : the function that takes data and the models and output ys
-        x_te : np.ndarry, the test data
+        x_te : tf.Tensor or np.ndarray, test data
+
+
+        Returns
+        -------
+
         """
 
         # this is necessary in order to go through all the samples in test set
@@ -105,8 +105,16 @@ class Box:
         return ys_hat_all
 
     def save_weights(self, file_path):
-        """
-        Save the model. Note that it is necessary to also save the shape of the input.
+        """Save the model. Note that it is necessary to also save the shape of the input.
+
+        Parameters
+        ----------
+        file_path : str, 
+
+
+        Returns
+        -------
+
         """
         import os
         os.system('rm -rf ' + file_path)
@@ -116,50 +124,22 @@ class Box:
             # model.save_weights('%s/%s.h5' % (file_path, idx))
 
     def load_weights(self, file_path):
-        """
-        Restore the model.
+        """Restore the model.
+
+        Parameters
+        ----------
+        file_path :
+
+
+        Returns
+        -------
+
         """
         for idx, model in self.models:
             model.load_weights('%s/%s.h5' % (file_path, idx))
 
 class HyperParamTuningBox():
-    """
-    Handles the tuning of hyperparameters.
-
-    Examples
-    --------
-
-    >>> def flow(xs, models):
-    ...     enc_f, enc_b, attention, fcuk = models
-    ...     eo_f, h_f = enc_f(xs)
-    ...     eo_b, h_b = enc_b(xs)
-    ...     attention_weights = attention(eo_f, eo_b, h_f, h_b)
-    ...     ys = fcuk(attention_weights)
-    ...     return ys
-
-    >>> param_grid = {'enc_units': [128, 256, 512],
-                      'attention_units': [128, 256, 512],
-                      'fcuk_units_0': [128, 256, 512, 1024],
-                      'fcuk_units_1': [128, 256, 512, 1024],
-                      'dropout0': [0.10, 0.25, 0.40],
-                      'dropout1': [0.10, 0.25, 0.40]}
-
-    >>> def model_update_fn(models, param_grid, config):
-    ...     enc_f, enc_b, attention, fcuk = models
-    ...     enc_f = enc_f.__init__(enc_units = param_grid['enc_units'][config[0]])
-    ...     enc_b = enc_b.__init__(enc_units = param_grid['enc_units'][config[0]])
-    ...     attention = attention.__init__(param_grid['enc_units'][config[1]])
-    ...     fcuk = fcuk.__init__([
-                                param_grid['fcuk_units_0'][config[2]],
-                                param_grid['dropout0'][config[4]],
-                                param_grid['fcuk_units_1'][config[3]],
-                                param_grid['dropout1'][config[5]],
-                                1
-                                ])
-    ...     return enc_f, enc_b, attention, fcuk
-
-    >>> h_box = HyperParamTuningBox(flow, models, param_grid)
-    """
+    """Handles the tuning of hyperparameters."""
     def __init__(self, flow, models, param_grid, model_update_fn,
                  n_epochs=10, batch_sz=1,
                  loss_fn=tf.losses.mean_squared_error):
@@ -175,15 +155,22 @@ class HyperParamTuningBox():
                 model.batch_sz = self.batch_sz
 
     def load_dataset(self, df, smiles_idx: int, prop_idx: int) -> None:
-        """
-        Load a pandas DataFrame.
+        """Load a pandas DataFrame.
 
         Parameters
         ----------
-        df : pd.DataFrame containing a row of SMILES strings and other rows of
-             properties associated with the molecule.
-        smiles_idx : index of the row of the SMILES strings in df.
-        prop_idx : list, indicies of the rows of the properties to predict.
+        df :
+            param smiles_idx: int:
+        prop_idx :
+            int:
+        smiles_idx: int :
+
+        prop_idx: int :
+
+
+        Returns
+        -------
+
         """
         # take the rows of interest
         x_all = df.values[smiles_idx]
@@ -193,23 +180,26 @@ class HyperParamTuningBox():
         self.y_all = y_all
 
     def split(self, split_param: List[float], x, y, random=True):
-        """
-        Split the set into training and test.
+        """Split the set into training and test.
 
         Parameters
         ----------
-        split_param : list of floats, could be in the length of two or three.
-        x : np.array of SMILES strings to split from
-        y : np.array of properties to split from
+        split_param :
+            type split_param: list of floats, could be in the length of two or three.
+        x :
+            type x: np.array of SMILES strings to split from
+        y :
+            type y: np.array of properties to split from
+        split_param :
+            List[float]:
+        random :
+            Default value = True)
+        split_param: List[float] :
+
 
         Returns
         -------
-        x_tr
-        y_tr
-        x_te
-        y_te
-        x_val
-        y_val
+
         """
 
         if random == True: # shuffle the data
@@ -246,11 +236,17 @@ class HyperParamTuningBox():
 
 
     def grid_search(self):
-        """
-        The function that handles the tuning of the cross training and tuning of
+        """The function that handles the tuning of the cross training and tuning of
         the hyperparameters.
 
+        Parameters
+        ----------
+
+        Returns
+        -------
 
         """
         x_tr, y_tr, x_te, y_te, x_val, y_val = self.split([0.8, 0.1, 0.1],
                                                self.x_all, self.y_all)
+
+        raise NotImplementedError

@@ -15,6 +15,19 @@ import sys
 
 # helper functions
 def gru(units, reverse = False):
+    """
+
+    Parameters
+    ----------
+    units :
+        param reverse:  (Default value = False)
+    reverse :
+         (Default value = False)
+
+    Returns
+    -------
+
+    """
     # CuDNNGRU is much faster than gru, but is only compatiable when GPU is available.
     if tf.test.is_gpu_available():
         return tf.keras.layers.CuDNNGRU(units,
@@ -33,6 +46,17 @@ def gru(units, reverse = False):
                                recurrent_initializer='glorot_uniform')
 
 def lstm(units):
+    """
+
+    Parameters
+    ----------
+    units :
+
+
+    Returns
+    -------
+
+    """
     # CuDNNGRU is much faster than gru, but is only compatiable when GPU is available.
     if tf.test.is_gpu_available():
         return tf.keras.layers.CuDNNLSTM(units,
@@ -51,6 +75,7 @@ def lstm(units):
 
 
 class OneHotDecoder(tf.keras.Model):
+    """ """
     def __init__(self, vocab_size, dec_units = 32, batch_sz = 128, max_len = 64):
         super(OneHotDecoder, self).__init__()
         self.vocab_size = vocab_size
@@ -75,14 +100,7 @@ class OneHotDecoder(tf.keras.Model):
 
 # utility classes
 class FullyConnectedUnits(tf.keras.Model):
-    """
-    Fully Connected Units, consisting of dense layers, dropouts, and activations.
-
-    Parameters
-    ----------
-    config : a list of str, int, or float.
-        A mapping of activation function, layers, and dropouts were constructed.
-    """
+    """Fully Connected Units, consisting of dense layers, dropouts, and activations."""
 
     def __init__(self, config):
         super(FullyConnectedUnits, self).__init__()
@@ -93,9 +111,7 @@ class FullyConnectedUnits(tf.keras.Model):
         self.build_net()
 
     def build_net(self):
-        """
-        Construct a FullyConnectedUnits object based on input sequence.
-        """
+        """Construct a FullyConnectedUnits object based on input sequence."""
         for idx, value in enumerate(self.config):
             if isinstance(value, str):
                 assert (value in ['tanh', 'relu', 'sigmoid', 'leaky_relu']), "Can't identify activation function."
@@ -126,30 +142,33 @@ class FullyConnectedUnits(tf.keras.Model):
         return x_tensor
 
     def initialize(self, x_shape):
+        """
+
+        Parameters
+        ----------
+        x_shape :
+
+
+        Returns
+        -------
+
+        """
         self.__call__(tf.zeros(x_shape))
 
     def switch_to_test(self):
+        """ """
         for callable in self.dropout_list:
             setattr(self, callable, lambda x: x)
 
 
     @property
     def input_shape(self):
+        """ """
         return self.get_input_shape_at(0)
 
 
 class Encoder(tf.keras.Model):
-    """
-    Encoder encodes a preprocessed sequence data using GRU.
-
-    Parameters
-    ----------
-    batch_sz : int, batch size
-    enc_units : int, the number of neurons in encoder
-    embedding_dim : the dimmension of space to which the sequence data is projected
-    reverse : Boolean. If True, the sequence is reversed.
-        This is useful for bidirectional RNN.
-    """
+    """Encoder encodes a preprocessed sequence data using GRU."""
 
     def __init__(self, vocab_size, embedding_dim=16, enc_units=128, batch_sz=16, reverse = False):
         super(Encoder, self).__init__()
@@ -167,9 +186,21 @@ class Encoder(tf.keras.Model):
         return output, state
 
     def initialize(self, x_shape):
+        """
+
+        Parameters
+        ----------
+        x_shape :
+
+
+        Returns
+        -------
+
+        """
         self.__call__(tf.zeros(x_shape))
 
 class Decoder(tf.keras.Model):
+    """ """
     def __init__(self, vocab_size, embedding_dim=16, dec_units=128, batch_sz=16):
         super(Decoder, self).__init__()
         self.batch_sz = batch_sz
@@ -197,9 +228,11 @@ class Decoder(tf.keras.Model):
         return x, state, attention_weights
 
     def initialize_hidden_state(self):
+        """ """
         return tf.zeros((self.batch_sz, self.dec_units))
 
 class AttentionDecoder(tf.keras.Model):
+    """ """
     def __init__(self, vocab_size, embedding_dim=16, dec_units=128, batch_sz=16):
         super(AttentionDecoder, self).__init__()
         self.vocab_size = vocab_size
@@ -219,9 +252,11 @@ class AttentionDecoder(tf.keras.Model):
         return x, state
 
     def initialize_hidden_state(self):
+        """ """
         return tf.zeros((self.batch_sz, self.dec_units))
 
 class DeepAttentionDecoder(tf.keras.Model):
+    """ """
     def __init__(self, vocab_size, embedding_dim=16, dec_units=128, batch_sz = 128):
         super(DeepAttentionDecoder, self).__init__()
         self.vocab_size = vocab_size
@@ -252,15 +287,13 @@ class DeepAttentionDecoder(tf.keras.Model):
         return x, hidden
 
     def initialize_hidden_state(self):
+        """ """
         return tf.zeros((self.batch_sz, self.dec_units))
 
 
 
 class BidirectionalAttention(tf.keras.Model):
-    """
-    Attention constructs the attention weights in seq2seq model.
-
-    """
+    """Attention constructs the attention weights in seq2seq model."""
     def __init__(self, units):
         super(BidirectionalAttention, self).__init__()
         self.units = units
@@ -280,16 +313,27 @@ class BidirectionalAttention(tf.keras.Model):
 
     @property
     def input_shapes(self):
+        """ """
         return [model.get_input_shape_at(0) for model in [self.W1_f, self.W1_b, self.W2_f, self.W2_b, self.V]]
 
     def initialize(self, eo_shape, h_shape):
+        """
+
+        Parameters
+        ----------
+        eo_shape :
+            param h_shape:
+        h_shape :
+
+
+        Returns
+        -------
+
+        """
         self.__call__(tf.zeros(eo_shape), tf.zeros(eo_shape), tf.zeros(h_shape), tf.zeros(h_shape))
 
 class BidirectionalWideAttention(tf.keras.Model):
-    """
-    Attention constructs the attention weights in seq2seq model.
-
-    """
+    """Attention constructs the attention weights in seq2seq model."""
     def __init__(self, units):
         super(BidirectionalWideAttention, self).__init__()
         self.units = units
@@ -311,9 +355,23 @@ class BidirectionalWideAttention(tf.keras.Model):
 
     @property
     def input_shapes(self):
+        """ """
         return [model.get_input_shape_at(0) for model in [self.W1_f, self.W1_b, self.W2_f, self.W2_b, self.V]]
 
     def initialize(self, eo_shape, h_shape):
+        """
+
+        Parameters
+        ----------
+        eo_shape :
+            param h_shape:
+        h_shape :
+
+
+        Returns
+        -------
+
+        """
         self.__call__(tf.zeros(eo_shape), tf.zeros(eo_shape), tf.zeros(h_shape), tf.zeros(h_shape))
 
 
@@ -323,18 +381,18 @@ class OneHotDecoder(tf.keras.Model):
         self.vocab_size = vocab_size
         self.dec_units = dec_units
         self.batch_sz = batch_sz
-        self.gru = nets.gru(self.dec_units)
-        self.gru1 = nets.gru(self.dec_units)
+        self.lstm = lstm(self.dec_units)
         self.max_len = max_len
         self.fc = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(vocab_size))
-        self.D = tf.keras.layers.Dense(dec_units)
+        self.D = tf.keras.layers.Dense(2 * dec_units)
+        self.D1 = tf.keras.layers.Dense(2 * dec_units)
+
 
     def __call__(self, x):
         x = self.D(x)
+        x = self.D1(x)
         x = tf.expand_dims(x, 1)
         x = tf.tile(x, [1, self.max_len, 1])
-        x_0, hidden_0 = self.gru(x)
-        x_1, hidden_1 = self.gru1(x_0)
-        x = tf.concat([x_0, x_1], -1)
-        x = self.fc(x)
-        return x
+        x, _, _ = self.lstm(x)
+        x_ = self.fc(x)
+        return x_
