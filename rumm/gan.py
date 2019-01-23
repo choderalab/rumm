@@ -99,7 +99,7 @@ class ConditionalGAN(tf.keras.Model):
         -------
 
         """
-        ds = tf.data.Dataset.from_tensor_slices((x_tr, y_tr)).shuffle(y_tr.shape[0])
+        ds = tf.data.Dataset.from_tensor_slices((x, y)).shuffle(y.shape[0])
         ds = ds.apply(tf.contrib.data.batch_and_drop_remainder(self.batch_sz))
         self.ds = ds
 
