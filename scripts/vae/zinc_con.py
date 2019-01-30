@@ -1,19 +1,18 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-tf.enable_eager_execution(config=tf.ConfigProto(
-    intra_op_parallelism_threads=2400,
-    inter_op_parallelism_threads=2400))
+tf.enable_eager_execution()
 from sklearn.preprocessing import StandardScaler
 import pickle
 import sys
-sys.path.append('..')
+sys.path.append('../../rumm')
 import lang
 import nets
 import bayesian
 
 # constants
 BATCH_SZ = 512
+vocab_size = 36
 
 '''
 # load the dataset
@@ -59,13 +58,12 @@ enc_f = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False,
 enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True,
     enc_units = 256)
 attention = nets.BidirectionalWideAttention(128)
-fcuk = nets.FullyConnectedUnits([128, 'leaky_relu', 0.10, 1024, 'leaky_relu',
-  0.25, 512])
+fcuk = nets.FullyConnectedUnits([512, 'leaky_relu', 0.25, 512])
 d_mean = nets.FullyConnectedUnits([16])
 d_log_var = nets.FullyConnectedUnits([16])
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
-decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 256)
+decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 128)
 bypass_v_f = nets.FullyConnectedUnits([1])
 
 # convert to tensor
@@ -83,14 +81,14 @@ x = fcuk(attention_weights)
 x = tf.concat([x, bypass_xs_f], axis=-1)
 mean = d_mean(x)
 log_var = d_log_var(x)
-z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) * kl_anneal + mean
+z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) + mean
 ys_hat = fcuk_props(mean)
 fp_hat = fcuk_fp(mean)
 xs_bar = decoder(z)
 
 # load weights
 fcuk.load_weights('./fcuk.h5')
-fcuk_hp.load_weights('./fcuk_fp.h5')
+fcuk_fp.load_weights('./fcuk_fp.h5')
 enc_f.load_weights('./enc_f.h5')
 enc_b.load_weights('./enc_b.h5')
 attention.load_weights('./attention_weights.h5')
@@ -124,6 +122,27 @@ w3_task = tf.Variable(1.0, dtype=tf.float32)
 optimizer = tf.train.AdamOptimizer(1e-3)
 alpha = 0.5
 
+
+@tf.contrib.eager.defun
+def update():
+    optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
+    optimizer.apply_gradients([(delta_l_grad_1, w1_task)])
+    optimizer.apply_gradients([(delta_l_grad_2, w2_task)])
+    optimizer.apply_gradients([(delta_l_grad_3, w3_task)])
+
+    w0_task.assign(tf.clip_by_value(w0_task, 0.5, 2.0))
+    w1_task.assign(tf.clip_by_value(w1_task, 0.5, 2.0))
+    w2_task.assign(tf.clip_by_value(w2_task, 0.5, 2.0))
+    w3_task.assign(tf.clip_by_value(w3_task, 0.5, 2.0))
+
+    w_total = w0_task + w1_task + w2_task + w3_task
+    w0_task.assign(w0_task * tf.div_no_nan(4.0, w_total))
+    w1_task.assign(w1_task * tf.div_no_nan(4.0, w_total))
+    w2_task.assign(w2_task * tf.div_no_nan(4.0, w_total))
+    w3_task.assign(w3_task * tf.div_no_nan(4.0, w_total))
+
+
+
 for epoch in range(1000):
     # loop through the batches
     for (batch, (xs, ys, fps)) in enumerate(ds):
@@ -132,7 +151,6 @@ for epoch in range(1000):
         apply_norm = (batch % 10 == 0)
         with tf.GradientTape(persistent=apply_norm) as tape: # for descent
             # training
-            kl_anneal = 1.0
             eo_f, h_f = enc_f(xs)
             eo_b, h_b = enc_b(xs)
 
@@ -144,7 +162,7 @@ for epoch in range(1000):
 
             mean = d_mean(x)
             log_var = d_log_var(x)
-            z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) * kl_anneal + mean
+            z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) + mean
 
             ys_hat = fcuk_props(mean)
             fp_hat = fcuk_fp(mean)
@@ -158,7 +176,7 @@ for epoch in range(1000):
 
             loss2 = tf.clip_by_value(
                     tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = xs, logits = xs_bar)), 0.0, 1e5)
-            loss3 = tf.clip_by_value(kl_anneal * tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var))),
+            loss3 = tf.clip_by_value(tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var))),
                                      0.0, 1e5)
 
             lt = w0_task * loss0 + w1_task * loss1 + w2_task * loss2 + w3_task * loss3
@@ -235,25 +253,6 @@ for epoch in range(1000):
 
             del tape
             del tape1
-
-            @tf.contrib.eager.defun
-            def update():
-                optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
-                optimizer.apply_gradients([(delta_l_grad_1, w1_task)])
-                optimizer.apply_gradients([(delta_l_grad_2, w2_task)])
-                optimizer.apply_gradients([(delta_l_grad_3, w3_task)])
-
-                w0_task.assign(tf.clip_by_value(w0_task, 0.5, 2.0))
-                w1_task.assign(tf.clip_by_value(w1_task, 0.5, 2.0))
-                w2_task.assign(tf.clip_by_value(w2_task, 0.5, 2.0))
-                w3_task.assign(tf.clip_by_value(w3_task, 0.5, 2.0))
-
-                w_total = w0_task + w1_task + w2_task + w3_task
-                w0_task.assign(w0_task * tf.div_no_nan(4.0, w_total))
-                w1_task.assign(w1_task * tf.div_no_nan(4.0, w_total))
-                w2_task.assign(w2_task * tf.div_no_nan(4.0, w_total))
-                w3_task.assign(w3_task * tf.div_no_nan(4.0, w_total))
-
             tf.cond(tf.debugging.is_nan(delta_l_grad_0 + delta_l_grad_1 + delta_l_grad_2 + delta_l_grad_3),
                    lambda: None,
                    lambda: update())
