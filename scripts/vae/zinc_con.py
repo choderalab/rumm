@@ -243,10 +243,10 @@ for epoch in range(1000):
                 optimizer.apply_gradients([(delta_l_grad_2, w2_task)])
                 optimizer.apply_gradients([(delta_l_grad_3, w3_task)])
 
-                w0_task.assign(tf.clip_by_value(w0_task, 0.0, 2.0))
-                w1_task.assign(tf.clip_by_value(w1_task, 0.0, 2.0))
-                w2_task.assign(tf.clip_by_value(w2_task, 0.0, 2.0))
-                w3_task.assign(tf.clip_by_value(w3_task, 0.0, 2.0))
+                w0_task.assign(tf.clip_by_value(w0_task, 0.5, 2.0))
+                w1_task.assign(tf.clip_by_value(w1_task, 0.5, 2.0))
+                w2_task.assign(tf.clip_by_value(w2_task, 0.5, 2.0))
+                w3_task.assign(tf.clip_by_value(w3_task, 0.5, 2.0))
 
                 w_total = w0_task + w1_task + w2_task + w3_task
                 w0_task.assign(w0_task * tf.div_no_nan(4.0, w_total))

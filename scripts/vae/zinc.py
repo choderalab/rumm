@@ -60,13 +60,12 @@ enc_f = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False,
 enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True,
     enc_units = 256)
 attention = nets.BidirectionalWideAttention(128)
-fcuk = nets.FullyConnectedUnits([128, 'leaky_relu', 0.10, 1024, 'leaky_relu',
-  0.25, 512])
+fcuk = nets.FullyConnectedUnits([512, 'leaky_relu', 0.25, 512])
 d_mean = nets.FullyConnectedUnits([16])
 d_log_var = nets.FullyConnectedUnits([16])
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
-decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 256)
+decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 128)
 bypass_v_f = nets.FullyConnectedUnits([1])
 
 # convert to tensor
@@ -110,10 +109,11 @@ for epoch in range(1000):
     for (batch, (xs, ys, fps)) in enumerate(ds):
         # TODO
         # one training batch
+        apply_norm = (batch % 10 == 0)
         n_iter = tf.constant(epoch * int(xs.shape[0]) + batch * BATCH_SZ, dtype=tf.float32)
-        anneal_step = tf.constant(200000.0, dtype=tf.float32)
+        anneal_step = tf.constant(20000000.0, dtype=tf.float32)
 
-        with tf.GradientTape(persistent=True) as tape: # for descent
+        with tf.GradientTape(persistent=apply_norm) as tape: # for descent
             # training
             kl_anneal = tf.cond(n_iter < anneal_step,
                                 lambda: tf.math.sin(tf.div(n_iter, anneal_step) * 0.5 * tf.constant(np.pi, dtype=tf.float32)),
@@ -158,15 +158,15 @@ for epoch in range(1000):
 
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
 
-        if batch % 10 == 0:
+        if apply_norm:
             if batch % 100 == 0: # update the initial loss every 100 batches
                 loss0_int = loss0
                 loss1_int = loss1
                 loss2_int = loss2
                 loss3_int = loss3
 
-            print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
-            print(loss0.numpy(), loss1.numpy(), loss2.numpy(), loss3.numpy())
+                print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
+                print(loss0.numpy(), loss1.numpy(), loss2.numpy(), loss3.numpy())
 
             with tf.GradientTape(persistent=True, watch_accessed_variables=False) as tape1:
                 tape1.watch(w0_task)
@@ -219,6 +219,9 @@ for epoch in range(1000):
             delta_l_grad_3 = tf.clip_by_norm(tape1.gradient(l_grad, w3_task),
                 1e2)
 
+            del tape
+            del tape1
+
             @tf.contrib.eager.defun
             def update():
                 optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
@@ -226,10 +229,10 @@ for epoch in range(1000):
                 optimizer.apply_gradients([(delta_l_grad_2, w2_task)])
                 optimizer.apply_gradients([(delta_l_grad_3, w3_task)])
 
-                w0_task.assign(tf.clip_by_value(w0_task, 0.0, 2.0))
-                w1_task.assign(tf.clip_by_value(w1_task, 0.0, 2.0))
-                w2_task.assign(tf.clip_by_value(w2_task, 0.0, 2.0))
-                w3_task.assign(tf.clip_by_value(w3_task, 0.0, 2.0))
+                w0_task.assign(tf.clip_by_value(w0_task, 0.5, 2.0))
+                w1_task.assign(tf.clip_by_value(w1_task, 0.5, 2.0))
+                w2_task.assign(tf.clip_by_value(w2_task, 0.5, 2.0))
+                w3_task.assign(tf.clip_by_value(w3_task, 0.5, 2.0))
 
                 w_total = w0_task + w1_task + w2_task + w3_task
                 w0_task.assign(w0_task * tf.div_no_nan(4.0, w_total))
@@ -241,14 +244,14 @@ for epoch in range(1000):
                    lambda: None,
                    lambda: update())
 
-    if not np.isnan(lt.numpy()):
-        fcuk.save_weights('./fcuk.h5')
-        enc_f.save_weights('./enc_f.h5')
-        enc_b.save_weights('./enc_b.h5')
-        attention.save_weights('./attention_weights.h5')
-        fcuk_props.save_weights('./fcuk_props.h5')
-        fcuk_fp.save_weights('./fcuk_fp.h5')
-        d_mean.save_weights('./d_mean.h5')
-        d_log_var.save_weights('./d_log_var.h5')
-        decoder.save_weights('./decoder.h5')
-        bypass_v_f.save_weights('./bypass_v_f.h5')
+            if (batch % 1000 == 0) and ( np.isnan(lt.numpy()) == False):
+                fcuk.save_weights('./fcuk.h5')
+                enc_f.save_weights('./enc_f.h5')
+                enc_b.save_weights('./enc_b.h5')
+                attention.save_weights('./attention_weights.h5')
+                fcuk_props.save_weights('./fcuk_props.h5')
+                fcuk_fp.save_weights('./fcuk_fp.h5')
+                d_mean.save_weights('./d_mean.h5')
+                d_log_var.save_weights('./d_log_var.h5')
+                decoder.save_weights('./decoder.h5')
+                bypass_v_f.save_weights('./bypass_v_f.h5')
