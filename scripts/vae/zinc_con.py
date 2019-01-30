@@ -121,6 +121,7 @@ w3_task = tf.Variable(1.0, dtype=tf.float32)
 
 optimizer = tf.train.AdamOptimizer(1e-3)
 alpha = 0.5
+anneal_step = tf.constant(20000000.0, dtype=tf.float32)
 
 
 @tf.contrib.eager.defun
@@ -149,6 +150,11 @@ for epoch in range(1000):
         # TODO
         # one training batch
         apply_norm = (batch % 10 == 0)
+        n_iter = tf.constant(epoch * int(xs.shape[0]) + batch * BATCH_SZ, dtype=tf.float32)
+        kl_anneal = tf.cond(n_iter < anneal_step,
+                            lambda: tf.math.sin(tf.div(n_iter, anneal_step) * 0.5 * tf.constant(np.pi, dtype=tf.float32)),
+                            lambda: tf.constant(1.0, dtype=tf.float32))
+
         with tf.GradientTape(persistent=apply_norm) as tape: # for descent
             # training
             eo_f, h_f = enc_f(xs)
@@ -162,7 +168,7 @@ for epoch in range(1000):
 
             mean = d_mean(x)
             log_var = d_log_var(x)
-            z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) + mean
+            z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) * kl_anneal + mean
 
             ys_hat = fcuk_props(mean)
             fp_hat = fcuk_fp(mean)
@@ -176,7 +182,7 @@ for epoch in range(1000):
 
             loss2 = tf.clip_by_value(
                     tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = xs, logits = xs_bar)), 0.0, 1e5)
-            loss3 = tf.clip_by_value(tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var))),
+            loss3 = tf.clip_by_value(kl_anneal * tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var))),
                                      0.0, 1e5)
 
             lt = w0_task * loss0 + w1_task * loss1 + w2_task * loss2 + w3_task * loss3
