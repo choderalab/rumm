@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-tf.enable_eager_execution()
+tf.enable_eager_execution(config=tf.ConfigProto(
+    intra_op_parallelism_threads=2400,
+    inter_op_parallelism_threads=2400))
 from sklearn.preprocessing import StandardScaler
 import pickle
 import sys
@@ -127,15 +129,10 @@ for epoch in range(1000):
     for (batch, (xs, ys, fps)) in enumerate(ds):
         # TODO
         # one training batch
-        n_iter = tf.constant(epoch * int(xs.shape[0]) + batch * BATCH_SZ, dtype=tf.float32)
-        anneal_step = tf.constant(10000.0, dtype=tf.float32)
-
-        with tf.GradientTape(persistent=True) as tape: # for descent
+        apply_norm = (batch % 10 == 0)
+        with tf.GradientTape(persistent=apply_norm) as tape: # for descent
             # training
-            kl_anneal = tf.cond(n_iter < anneal_step,
-                                lambda: tf.math.sin(tf.div(n_iter, anneal_step) * 0.5 * tf.constant(np.pi, dtype=tf.float32)),
-                                lambda: tf.constant(1.0, dtype=tf.float32))
-
+            kl_anneal = 1.0
             eo_f, h_f = enc_f(xs)
             eo_b, h_b = enc_b(xs)
 
@@ -175,15 +172,15 @@ for epoch in range(1000):
 
         optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
 
-        if batch % 10 == 0:
+        if apply_norm:
             if batch % 100 == 0: # update the initial loss every 100 batches
                 loss0_int = loss0
                 loss1_int = loss1
                 loss2_int = loss2
                 loss3_int = loss3
 
-            print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
-            print(loss0.numpy(), loss1.numpy(), loss2.numpy(), loss3.numpy())
+                print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
+                print(loss0.numpy(), loss1.numpy(), loss2.numpy(), loss3.numpy())
 
             with tf.GradientTape(persistent=True, watch_accessed_variables=False) as tape1:
                 tape1.watch(w0_task)
@@ -204,13 +201,13 @@ for epoch in range(1000):
                 gw_bar = tf.div_no_nan(gw0 + gw1 + gw2 + gw3, 4.0)
 
                 l0_tilde = tf.clip_by_norm(tf.div_no_nan(loss0, loss0_int),
-                    1e2)
+                    1e5)
                 l1_tilde = tf.clip_by_norm(tf.div_no_nan(loss1, loss1_int),
-                    1e2)
+                    1e5)
                 l2_tilde = tf.clip_by_norm(tf.div_no_nan(loss2, loss2_int),
-                    1e2)
+                    1e5)
                 l3_tilde = tf.clip_by_norm(tf.div_no_nan(loss3, loss3_int),
-                    1e2)
+                    1e5)
 
                 l_tilde_bar = tf.div_no_nan(l0_tilde + l1_tilde + l2_tilde + l3_tilde, 4.0)
 
@@ -236,6 +233,9 @@ for epoch in range(1000):
             delta_l_grad_3 = tf.clip_by_norm(tape1.gradient(l_grad, w3_task),
                 1e2)
 
+            del tape
+            del tape1
+
             @tf.contrib.eager.defun
             def update():
                 optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
@@ -258,14 +258,14 @@ for epoch in range(1000):
                    lambda: None,
                    lambda: update())
 
-    if not np.isnan(lt.numpy()):
-        fcuk.save_weights('./fcuk.h5')
-        enc_f.save_weights('./enc_f.h5')
-        enc_b.save_weights('./enc_b.h5')
-        attention.save_weights('./attention_weights.h5')
-        fcuk_props.save_weights('./fcuk_props.h5')
-        fcuk_fp.save_weights('./fcuk_fp.h5')
-        d_mean.save_weights('./d_mean.h5')
-        d_log_var.save_weights('./d_log_var.h5')
-        decoder.save_weights('./decoder.h5')
-        bypass_v_f.save_weights('./bypass_v_f.h5')
+            if (batch % 1000 == 0) and ( np.isnan(lt.numpy()) == False):
+                fcuk.save_weights('./fcuk.h5')
+                enc_f.save_weights('./enc_f.h5')
+                enc_b.save_weights('./enc_b.h5')
+                attention.save_weights('./attention_weights.h5')
+                fcuk_props.save_weights('./fcuk_props.h5')
+                fcuk_fp.save_weights('./fcuk_fp.h5')
+                d_mean.save_weights('./d_mean.h5')
+                d_log_var.save_weights('./d_log_var.h5')
+                decoder.save_weights('./decoder.h5')
+                bypass_v_f.save_weights('./bypass_v_f.h5')
