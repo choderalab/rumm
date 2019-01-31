@@ -98,6 +98,24 @@ class OneHotDecoder(tf.keras.Model):
         return x_
 
 
+# to be merged with OneHotDecoder
+class SimpleDecoder(tf.keras.Model):
+    def __init__(self, vocab_size, dec_units = 32, batch_sz = 128, max_len = 64):
+        super(OneHotDecoder, self).__init__()
+        self.vocab_size = vocab_size
+        self.dec_units = dec_units
+        self.batch_sz = batch_sz
+        self.max_len = max_len
+        self.D0 = tf.keras.layers.Dense(dec_units)
+        self.D1 = tf.keras.layers.Dense(self.vocab_size * self.max_len)
+
+    def __call__(self, x):
+        x = self.D0(x)
+        x = self.D1(x)
+        x = tf.reshape([None, self.max_len, self.vocab_size])
+        return x
+
+
 # utility classes
 class FullyConnectedUnits(tf.keras.Model):
     """Fully Connected Units, consisting of dense layers, dropouts, and activations."""
@@ -343,7 +361,7 @@ class BidirectionalWideAttention(tf.keras.Model):
         self.W2_b = tf.keras.layers.Dense(self.units)
         self.V = tf.keras.layers.Dense(1)
 
-    @tf.contrib.eager.defun
+    # @tf.contrib.eager.defun
     def __call__(self, eo_f, eo_b, h_f, h_b):
         ht_f = tf.expand_dims(h_f, 1)
         ht_b = tf.expand_dims(h_b, 1)
