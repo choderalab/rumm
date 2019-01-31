@@ -153,7 +153,7 @@ class FullyConnectedUnits(tf.keras.Model):
                 setattr(self, 'C' + str(idx), tf.layers.Dropout(value))
                 self.dropout_list.append('C' + str(idx))
 
-    @tf.contrib.eager.defun
+    # @tf.contrib.eager.defun
     def __call__(self, x_tensor):
         for callable in self.callables:
             x_tensor = getattr(self, callable)(x_tensor)
@@ -260,7 +260,7 @@ class AttentionDecoder(tf.keras.Model):
         self.fc = tf.keras.layers.Dense(vocab_size)
         self.gru = gru(self.dec_units)
 
-    @tf.contrib.eager.defun
+    # @tf.contrib.eager.defun
     def __call__(self, x, hidden, attention_weights):
         x = self.embedding(x)
         x = tf.concat([tf.expand_dims(attention_weights, 1), x], axis=-1)
@@ -288,7 +288,7 @@ class DeepAttentionDecoder(tf.keras.Model):
         self.D3 = tf.keras.layers.Dense(dec_units)
         self.batch_sz = batch_sz
 
-    @tf.contrib.eager.defun
+    # @tf.contrib.eager.defun
     def __call__(self, x, attention_weights, hidden):
         attention_weights = tf.nn.leaky_relu(self.D0(attention_weights))
         attention_weights = tf.nn.leaky_relu(self.D1(attention_weights))
@@ -321,7 +321,7 @@ class BidirectionalAttention(tf.keras.Model):
         self.W2_b = tf.keras.layers.Dense(self.units)
         self.V = tf.keras.layers.Dense(1)
 
-    @tf.contrib.eager.defun
+    # @tf.contrib.eager.defun
     def __call__(self, eo_f, eo_b, h_f, h_b):
         ht_f = tf.expand_dims(h_f, 1)
         ht_b = tf.expand_dims(h_b, 1)
@@ -361,7 +361,7 @@ class BidirectionalWideAttention(tf.keras.Model):
         self.W2_b = tf.keras.layers.Dense(self.units)
         self.V = tf.keras.layers.Dense(1)
 
-    @tf.contrib.eager.defun
+    # @tf.contrib.eager.defun
     def __call__(self, eo_f, eo_b, h_f, h_b):
         ht_f = tf.expand_dims(h_f, 1)
         ht_b = tf.expand_dims(h_b, 1)
