@@ -98,6 +98,24 @@ class OneHotDecoder(tf.keras.Model):
         return x_
 
 
+# to be merged with OneHotDecoder
+class SimpleDecoder(tf.keras.Model):
+    def __init__(self, vocab_size, dec_units = 32, batch_sz = 128, max_len = 64):
+        super(OneHotDecoder, self).__init__()
+        self.vocab_size = vocab_size
+        self.dec_units = dec_units
+        self.batch_sz = batch_sz
+        self.max_len = max_len
+        self.D0 = tf.keras.layers.Dense(dec_units)
+        self.D1 = tf.keras.layers.Dense(self.vocab_size * self.max_len)
+
+    def __call__(self, x):
+        x = self.D0(x)
+        x = self.D1(x)
+        x = tf.reshape([None, self.max_len, self.vocab_size])
+        return x
+
+
 # utility classes
 class FullyConnectedUnits(tf.keras.Model):
     """Fully Connected Units, consisting of dense layers, dropouts, and activations."""
