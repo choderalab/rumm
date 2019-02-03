@@ -64,6 +64,8 @@ d_log_var = nets.FullyConnectedUnits([16])
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
 decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 128)
+simple_decoder = nets.SimpleDecoder(vocab_size=vocab_size, dec_units=1024,
+    batch_sz = BATCH_SZ)
 bypass_v_f = nets.FullyConnectedUnits([1])
 
 # convert to tensor
@@ -84,7 +86,7 @@ log_var = d_log_var(x)
 z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) + mean
 ys_hat = fcuk_props(mean)
 fp_hat = fcuk_fp(mean)
-xs_bar = decoder(z)
+xs_bar = decoder(z) + simple_decoder(z)
 
 # load weights
 fcuk.load_weights('./fcuk.h5')
@@ -97,6 +99,7 @@ decoder.load_weights('./decoder.h5')
 bypass_v_f.load_weights('./bypass_v_f.h5')
 d_mean.load_weights('./d_mean.h5')
 d_log_var.load_weights('./d_log_var.h5')
+simple_decoder.load_weights('./simple_decoder.h5')
 
 # make them into a dataset object
 ds = tf.data.Dataset.from_tensor_slices((x_tr, y_tr, fp_tr)).shuffle(y_tr.shape[0])
@@ -121,7 +124,7 @@ w3_task = tf.Variable(1.0, dtype=tf.float32)
 
 optimizer = tf.train.AdamOptimizer(1e-3)
 alpha = 0.5
-anneal_step = tf.constant(20000000.0, dtype=tf.float32)
+anneal_step = tf.constant(500000000.0, dtype=tf.float32)
 
 
 @tf.contrib.eager.defun
@@ -150,7 +153,7 @@ for epoch in range(1000):
         # TODO
         # one training batch
         apply_norm = (batch % 10 == 0)
-        n_iter = tf.constant(epoch * int(xs.shape[0]) + batch * BATCH_SZ, dtype=tf.float32)
+        n_iter = tf.constant(epoch * int(y_tr.shape[0]) + batch * BATCH_SZ, dtype=tf.float32)
         kl_anneal = tf.cond(n_iter < anneal_step,
                             lambda: tf.math.sin(tf.div(n_iter, anneal_step) * 0.5 * tf.constant(np.pi, dtype=tf.float32)),
                             lambda: tf.constant(1.0, dtype=tf.float32))
@@ -178,7 +181,7 @@ for epoch in range(1000):
             loss1 = tf.clip_by_value(tf.losses.mean_squared_error(fps, fp_hat),
                                      0.0, 1e5)
 
-            xs_bar = decoder(z)
+            xs_bar = decoder(z) + simple_decoder(z)
 
             loss2 = tf.clip_by_value(
                     tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = xs, logits = xs_bar)), 0.0, 1e5)
@@ -190,7 +193,8 @@ for epoch in range(1000):
         # start grad norm
         variables = enc_f.variables + enc_b.variables + fcuk.variables +\
                     attention.variables + fcuk_props.variables + decoder.variables + fcuk_fp.variables +\
-                    d_mean.variables + d_log_var.variables + bypass_v_f.variables
+                    d_mean.variables + d_log_var.variables +\
+                     bypass_v_f.variables + simple_decoder.variables
 
         gradients = tape.gradient(lt, variables)
 
@@ -274,3 +278,4 @@ for epoch in range(1000):
                 d_log_var.save_weights('./d_log_var.h5')
                 decoder.save_weights('./decoder.h5')
                 bypass_v_f.save_weights('./bypass_v_f.h5')
+                simple_decoder.save_weights('./simple_decoder.h5')
