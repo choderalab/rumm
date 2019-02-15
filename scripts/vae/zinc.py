@@ -11,7 +11,7 @@ import nets
 import bayesian
 
 # constants
-BATCH_SZ = 512
+BATCH_SZ = 2048
 
 '''
 zinc_df = pd.read_csv('res.csv', sep='\t')
@@ -48,6 +48,7 @@ np.save('fp_te', fp_te)
 y_tr = np.load('y_tr.npy')
 x_tr = np.load('x_tr.npy')
 fp_tr = np.load('fp_tr.npy')
+n_samples = y_tr.shape[0]
 
 f_handle = open('lang_obj.p', 'rb')
 lang_obj = pickle.load(f_handle)
@@ -59,13 +60,13 @@ enc_f = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False,
     enc_units = 256)
 enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True,
     enc_units = 256)
-attention = nets.BidirectionalWideAttention(128)
+attention = nets.BidirectionalWideAttention(256)
 fcuk = nets.FullyConnectedUnits([512, 'leaky_relu', 0.25, 512])
-d_mean = nets.FullyConnectedUnits([16])
-d_log_var = nets.FullyConnectedUnits([16])
+d_mean = nets.FullyConnectedUnits([128])
+d_log_var = nets.FullyConnectedUnits([128])
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
-decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 128)
+decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 512)
 bypass_v_f = nets.FullyConnectedUnits([1])
 simple_decoder = nets.SimpleDecoder(vocab_size=vocab_size, dec_units=1024,
     batch_sz = BATCH_SZ)
@@ -86,9 +87,6 @@ x_te = None
 y_te = None
 fp_te = None
 
-# get your favorite optimizer
-optimizer=tf.train.AdamOptimizer()
-
 # define loss function for sequence
 def seq_loss(y, y_hat):
     mask = 1 - np.equal(y, 0)
@@ -106,7 +104,7 @@ w1_task = tf.Variable(1.0, dtype=tf.float32)
 w2_task = tf.Variable(1.0, dtype=tf.float32)
 w3_task = tf.Variable(1.0, dtype=tf.float32)
 
-optimizer = tf.train.AdamOptimizer(5e-3)
+optimizer = tf.train.AdamOptimizer(1e-3)
 alpha = 0.5
 anneal_step = tf.constant(1000000000.0, dtype=tf.float32)
 
@@ -137,7 +135,7 @@ for epoch in range(1000):
         # TODO
         # one training batch
         apply_norm = (batch % 10 == 0)
-        n_iter = tf.constant(epoch * int(y_tr.shape[0]) + batch * BATCH_SZ, dtype=tf.float32)
+        n_iter = tf.constant(epoch * int(n_samples) + batch * BATCH_SZ, dtype=tf.float32)
         kl_anneal = tf.cond(n_iter < anneal_step,
                             lambda: tf.math.sin(tf.div(n_iter, anneal_step) * 0.5 * tf.constant(np.pi, dtype=tf.float32)),
                             lambda: tf.constant(1.0, dtype=tf.float32))
@@ -155,7 +153,7 @@ for epoch in range(1000):
 
             mean = d_mean(x)
             log_var = d_log_var(x)
-            z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) * kl_anneal + mean
+            z = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5) + mean
 
             ys_hat = fcuk_props(mean)
             fp_hat = fcuk_fp(mean)
@@ -169,7 +167,8 @@ for epoch in range(1000):
 
             loss2 = tf.clip_by_value(
                     tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = xs, logits = xs_bar)), 0.0, 1e5)
-            loss3 = tf.clip_by_value(kl_anneal * tf.reduce_mean(-0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var))),
+            loss3 = tf.clip_by_value(kl_anneal * tf.reduce_mean(-0.5
+              * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), 1)),
                                      0.0, 1e5)
 
             lt = w0_task * loss0 + w1_task * loss1 + w2_task * loss2 + w3_task * loss3
@@ -178,7 +177,7 @@ for epoch in range(1000):
         variables = enc_f.variables + enc_b.variables + fcuk.variables +\
                     attention.variables + fcuk_props.variables + decoder.variables + fcuk_fp.variables +\
                     d_mean.variables + d_log_var.variables +\
-                     bypass_v_f.variables + simple_decoder.variables
+                     simple_decoder.variables + bypass_v_f.variables
 
         gradients = tape.gradient(lt, variables)
 
