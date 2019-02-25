@@ -11,7 +11,7 @@ import nets
 import bayesian
 
 # constants
-BATCH_SZ = 2048
+BATCH_SZ = 1024
 
 '''
 zinc_df = pd.read_csv('res.csv', sep='\t')
@@ -57,13 +57,13 @@ vocab_size = len(lang_obj.idx2ch) + 1
 
 # define models
 enc_f = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False,
-    enc_units = 256)
+    enc_units = 512)
 enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True,
-    enc_units = 256)
-attention = nets.BidirectionalWideAttention(256)
-fcuk = nets.FullyConnectedUnits([512, 'leaky_relu', 0.25, 512])
-d_mean = nets.FullyConnectedUnits([128])
-d_log_var = nets.FullyConnectedUnits([128])
+    enc_units = 512)
+attention = nets.BidirectionalWideAttention(512)
+fcuk = nets.FullyConnectedUnits([512, 'leaky_relu', 0.25, 512, 'leaky_relu'])
+d_mean = nets.FullyConnectedUnits([512])
+d_log_var = nets.FullyConnectedUnits([512])
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
 decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 512)
@@ -98,17 +98,17 @@ def seq_loss(y, y_hat):
 
 # train it!
 # loop through the epochs
-
+'''
 w0_task = tf.Variable(1.0, dtype=tf.float32)
 w1_task = tf.Variable(1.0, dtype=tf.float32)
 w2_task = tf.Variable(1.0, dtype=tf.float32)
 w3_task = tf.Variable(1.0, dtype=tf.float32)
-
+'''
 optimizer = tf.train.AdamOptimizer(1e-3)
 alpha = 0.5
-anneal_step = tf.constant(1000000000.0, dtype=tf.float32)
+anneal_step = tf.constant(10000000.0, dtype=tf.float32)
 
-
+'''
 @tf.contrib.eager.defun
 def update():
     optimizer.apply_gradients([(delta_l_grad_0, w0_task)])
@@ -127,20 +127,19 @@ def update():
     w2_task.assign(w2_task * tf.div_no_nan(4.0, w_total))
     w3_task.assign(w3_task * tf.div_no_nan(4.0, w_total))
 
-
+'''
 
 for epoch in range(1000):
     # loop through the batches
     for (batch, (xs, ys, fps)) in enumerate(ds):
         # TODO
         # one training batch
-        apply_norm = (batch % 10 == 0)
         n_iter = tf.constant(epoch * int(n_samples) + batch * BATCH_SZ, dtype=tf.float32)
         kl_anneal = tf.cond(n_iter < anneal_step,
                             lambda: tf.math.sin(tf.div(n_iter, anneal_step) * 0.5 * tf.constant(np.pi, dtype=tf.float32)),
                             lambda: tf.constant(1.0, dtype=tf.float32))
 
-        with tf.GradientTape(persistent=apply_norm) as tape: # for descent
+        with tf.GradientTape() as tape: # for descent
             # training
             eo_f, h_f = enc_f(xs)
             eo_b, h_b = enc_b(xs)
@@ -169,88 +168,17 @@ for epoch in range(1000):
                     tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = xs, logits = xs_bar)), 0.0, 1e5)
             loss3 = tf.clip_by_value(kl_anneal * tf.reduce_mean(-0.5
               * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), 1)),
-                                     0.0, 1e5)
+                                     1.0, 1e5)
 
-            lt = w0_task * loss0 + w1_task * loss1 + w2_task * loss2 + w3_task * loss3
+            lt = loss0 + loss1 + loss2 + loss3
+            
+            variables = enc_f.variables + enc_b.variables\
+                  + attention.variables + fcuk_props.variables\
+                  + fcuk_fp.variables + d_mean.variables + d_log_var.variables\
+                  + decoder.variables + bypass_v_f.variables\
+                  + simple_decoder.variables
 
-        # start grad norm
-        variables = enc_f.variables + enc_b.variables + fcuk.variables +\
-                    attention.variables + fcuk_props.variables + decoder.variables + fcuk_fp.variables +\
-                    d_mean.variables + d_log_var.variables +\
-                     simple_decoder.variables + bypass_v_f.variables
-
-        gradients = tape.gradient(lt, variables)
-
-        optimizer.apply_gradients(zip(gradients, variables), tf.train.get_or_create_global_step())
-
-        if apply_norm:
-            if batch % 100 == 0: # update the initial loss every 100 batches
-                loss0_int = loss0
-                loss1_int = loss1
-                loss2_int = loss2
-                loss3_int = loss3
-
-                print("epoch %s batch %s loss %s" % (epoch, batch, np.asscalar(lt.numpy())))
-                print(loss0.numpy(), loss1.numpy(), loss2.numpy(), loss3.numpy())
-
-            with tf.GradientTape(persistent=True, watch_accessed_variables=False) as tape1:
-                tape1.watch(w0_task)
-                tape1.watch(w1_task)
-                tape1.watch(w2_task)
-                tape1.watch(w3_task)
-
-                gw_grad_0 = w0_task * tf.clip_by_norm(tape.gradient(loss0, d_mean.C0.weights[0]), 1e2)
-                gw_grad_1 = w1_task * tf.clip_by_norm(tape.gradient(loss1, d_mean.C0.weights[0]), 1e2)
-                gw_grad_2 = w2_task * tf.clip_by_norm(tape.gradient(loss2, d_mean.C0.weights[0]), 1e2)
-                gw_grad_3 = w3_task * tf.clip_by_norm(tape.gradient(loss3, d_mean.C0.weights[0]), 1e2)
-
-                gw0 = tf.clip_by_norm(tf.norm(gw_grad_0), 1e2)
-                gw1 = tf.clip_by_norm(tf.norm(gw_grad_1), 1e2)
-                gw2 = tf.clip_by_norm(tf.norm(gw_grad_2), 1e2)
-                gw3 = tf.clip_by_norm(tf.norm(gw_grad_3), 1e2)
-
-                gw_bar = tf.div_no_nan(gw0 + gw1 + gw2 + gw3, 4.0)
-
-                l0_tilde = tf.clip_by_norm(tf.div_no_nan(loss0, loss0_int),
-                    1e5)
-                l1_tilde = tf.clip_by_norm(tf.div_no_nan(loss1, loss1_int),
-                    1e5)
-                l2_tilde = tf.clip_by_norm(tf.div_no_nan(loss2, loss2_int),
-                    1e5)
-                l3_tilde = tf.clip_by_norm(tf.div_no_nan(loss3, loss3_int),
-                    1e5)
-
-                l_tilde_bar = tf.div_no_nan(l0_tilde + l1_tilde + l2_tilde + l3_tilde, 4.0)
-
-                r0 = tf.div_no_nan(l0_tilde, l_tilde_bar)
-                r1 = tf.div_no_nan(l1_tilde, l_tilde_bar)
-                r2 = tf.div_no_nan(l2_tilde, l_tilde_bar)
-                r3 = tf.div_no_nan(l3_tilde, l_tilde_bar)
-
-                l_grad = tf.math.abs(gw0 - tf.stop_gradient(gw_bar * tf.math.pow(r0, alpha))) +\
-                         tf.math.abs(gw1 - tf.stop_gradient(gw_bar * tf.math.pow(r1, alpha))) +\
-                         tf.math.abs(gw2 - tf.stop_gradient(gw_bar * tf.math.pow(r2, alpha))) +\
-                         tf.math.abs(gw3 - tf.stop_gradient(gw_bar * tf.math.pow(r3, alpha)))
-
-
-                l_grad = tf.clip_by_norm(l_grad, 1e2)
-
-            delta_l_grad_0 = tf.clip_by_norm(tape1.gradient(l_grad, w0_task),
-                1e2)
-            delta_l_grad_1 = tf.clip_by_norm(tape1.gradient(l_grad, w1_task),
-                1e2)
-            delta_l_grad_2 = tf.clip_by_norm(tape1.gradient(l_grad, w2_task),
-                1e2)
-            delta_l_grad_3 = tf.clip_by_norm(tape1.gradient(l_grad, w3_task),
-                1e2)
-
-            del tape
-            del tape1
-            tf.cond(tf.debugging.is_nan(delta_l_grad_0 + delta_l_grad_1 + delta_l_grad_2 + delta_l_grad_3),
-                   lambda: None,
-                   lambda: update())
-
-            if (batch % 1000 == 0) and ( np.isnan(lt.numpy()) == False):
+            if (batch % 1000 == 0):
                 fcuk.save_weights('./fcuk.h5')
                 enc_f.save_weights('./enc_f.h5')
                 enc_b.save_weights('./enc_b.h5')
