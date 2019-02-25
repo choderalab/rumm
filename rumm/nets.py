@@ -34,9 +34,9 @@ def gru(units, reverse = False):
                                     return_sequences=True,
                                     return_state=True,
                                     recurrent_initializer='glorot_uniform',
-                                    kernel_regularizer=tf.keras.regularizers.l1(l=0.01),
-                                    recurrent_regularizer=tf.keras.regularizers.l1(l=0.001),
-                                    bias_regularizer=tf.keras.regularizers.l1(l=0.01),
+                                    kernel_regularizer=tf.keras.regularizers.l1(l=0.0001),
+                                    recurrent_regularizer=tf.keras.regularizers.l1(l=0.00001),
+                                    bias_regularizer=tf.keras.regularizers.l1(l=0.0001),
                                     go_backwards=reverse)
     else:
         return tf.keras.layers.GRU(units,
@@ -62,10 +62,10 @@ def lstm(units):
         return tf.keras.layers.CuDNNLSTM(units,
                                     return_sequences=True,
                                     return_state=True,
-                                    recurrent_initializer='glorot_normal',
-                                    kernel_regularizer=tf.keras.regularizers.l1(l=0.001),
-                                    recurrent_regularizer=tf.keras.regularizers.l1(l=0.001),
-                                    bias_regularizer=tf.keras.regularizers.l1(l=0.001))
+                                    recurrent_initializer='glorot_uniform',
+                                    kernel_regularizer=tf.keras.regularizers.l1(l=0.0001),
+                                    recurrent_regularizer=tf.keras.regularizers.l1(l=0.00001),
+                                    bias_regularizer=tf.keras.regularizers.l1(l=0.0001))
     else:
         return tf.keras.layers.LSTM(units,
                                return_sequences=True,
@@ -82,6 +82,7 @@ class OneHotDecoder(tf.keras.Model):
         self.dec_units = dec_units
         self.batch_sz = batch_sz
         self.lstm = lstm(self.dec_units)
+        self.lstm0 = lstm(self.dec_units)
         self.max_len = max_len
         self.fc = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(vocab_size))
         self.D = tf.keras.layers.Dense(2 * dec_units)
@@ -94,6 +95,7 @@ class OneHotDecoder(tf.keras.Model):
         x = tf.expand_dims(x, 1)
         x = tf.tile(x, [1, self.max_len, 1])
         x, _, _ = self.lstm(x)
+        x, _, _ = self.lstm0(x)
         x_ = self.fc(x)
         return x_
 
@@ -101,18 +103,20 @@ class OneHotDecoder(tf.keras.Model):
 # to be merged with OneHotDecoder
 class SimpleDecoder(tf.keras.Model):
     def __init__(self, vocab_size, dec_units = 32, batch_sz = 128, max_len = 64):
-        super(OneHotDecoder, self).__init__()
+        super(SimpleDecoder, self).__init__()
         self.vocab_size = vocab_size
         self.dec_units = dec_units
         self.batch_sz = batch_sz
         self.max_len = max_len
+        self.D = tf.keras.layers.Dense(dec_units)
         self.D0 = tf.keras.layers.Dense(dec_units)
         self.D1 = tf.keras.layers.Dense(self.vocab_size * self.max_len)
 
     def __call__(self, x):
+        x = self.D(x)
         x = self.D0(x)
         x = self.D1(x)
-        x = tf.reshape([None, self.max_len, self.vocab_size])
+        x = tf.reshape(x, [x.shape[0], self.max_len, self.vocab_size])
         return x
 
 
