@@ -57,9 +57,9 @@ vocab_size = len(lang_obj.idx2ch) + 1
 
 # define models
 enc_f = nets.GRUEncoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False,
-    enc_units = 512)
+    enc_units = 128)
 enc_b = nets.GRUEncoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True,
-    enc_units = 512)
+    enc_units = 128)
 conv_encoder = nets.ConvEncoder(
     conv_units=[256, 512, 512],
     # pool_sizes=[8, 8, 8, 8],
@@ -73,7 +73,7 @@ d_log_var = nets.FullyConnectedUnits([256])
 
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
-decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 512)
+decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 256)
 bypass_v_f = nets.FullyConnectedUnits([1])
 simple_decoder = nets.SimpleDecoder(vocab_size=vocab_size, dec_units=1024,
     batch_sz = BATCH_SZ)
@@ -96,7 +96,6 @@ fp_te = None
 
 
 
-<<<<<<< HEAD
 optimizer = tf.train.AdamOptimizer(1e-5)
 anneal_step = tf.constant(100000000.0, dtype=tf.float32)
 
@@ -130,7 +129,7 @@ for epoch in range(10000):
             xs_bar = decoder(z)
             loss2 = tf.clip_by_value(
                     tf.reduce_mean(
-                        tf.nn.softmax_cross_entropy_with_logits_v2(labels = tf.one_hot(xs, 33), logits = xs_bar)), 0.0, 1e20)
+                        tf.nn.sparse_softmax_cross_entropy_with_logits(labels = xs, logits = xs_bar)), 0.0, 1e20)
             loss3 = tf.clip_by_value(kl_anneal * tf.reduce_mean(-0.5 * tf.reduce_mean(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=[1])), 1.0, 1e5)
 
             lt = loss0 + loss1 + loss2 + loss3
@@ -138,7 +137,7 @@ for epoch in range(10000):
         # start grad norm
         variables = conv_encoder.variables +\
              d_mean.variables + decoder.variables + d_log_var.variables +\
-               enc_f.variables + enc_b.variables + fcuk.variables + attention.variables +\
+               enc_f.variables + enc_b.variables + fcuk.variables +\
                 fcuk_props.variables + fcuk_fp.variables
 
         gradients = tape.gradient(lt, variables)
@@ -152,7 +151,6 @@ for epoch in range(10000):
             fcuk.save_weights('./fcuk.h5')
             enc_f.save_weights('./enc_f.h5')
             enc_b.save_weights('./enc_b.h5')
-            attention.save_weights('./attention_weights.h5')
             fcuk_props.save_weights('./fcuk_props.h5')
             fcuk_fp.save_weights('./fcuk_fp.h5')
             d_mean.save_weights('./d_mean.h5')
