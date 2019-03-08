@@ -96,16 +96,20 @@ for (batch, (xs, ys)) in enumerate(ds):
     # load x
     eo_f, h_f = enc_f(xs)
     eo_b, h_b = enc_b(xs)
-    attention_weights = attention(eo_f, eo_b, h_f, h_b)
-    attention_weights = fcuk(attention_weights)
-    x_mean = d_mean(attention_weights)
+    x_attention = tf.concat([h_f, h_b], axis=-1)
+    x_attention = fcuk(x_attention)
+    x_conv = conv_encoder(tf.one_hot(xs, 33))
+    x = tf.concat([x_attention, x_conv], axis=-1)
+    x_mean = d_mean(x)
 
     # load y
     eo_f, h_f = enc_f(ys)
     eo_b, h_b = enc_b(ys)
-    attention_weights = attention(eo_f, eo_b, h_f, h_b)
-    attention_weights = fcuk(attention_weights)
-    y_mean = d_mean(attention_weights)
+    y_attention = tf.concat([h_f, h_b], axis=-1)
+    y_attention = fcuk(y_attention)
+    y_conv = conv_encoder(tf.one_hot(ys, 33))
+    y = tf.concat([y_attention, y_conv], axis=-1)
+    y_mean = d_mean(y)
 
     if batch == 0:
         x_out = x_mean
