@@ -92,6 +92,10 @@ decoder.load_weights('weights/decoder.h5')
 
 ds = tf.data.Dataset.from_tensor_slices((xs, ys))
 ds = ds.apply(tf.contrib.data.batch_and_drop_remainder(BATCH_SZ))
+
+x_out = np.array([])
+y_out = np.array([])
+
 for (batch, (xs, ys)) in enumerate(ds):
     # load x
     eo_f, h_f = enc_f(xs)
@@ -101,6 +105,7 @@ for (batch, (xs, ys)) in enumerate(ds):
     x_conv = conv_encoder(tf.one_hot(xs, 33))
     x = tf.concat([x_attention, x_conv], axis=-1)
     x_mean = d_mean(x)
+    x_out = x_out.append(x_mean.numpy())
 
     # load y
     eo_f, h_f = enc_f(ys)
@@ -110,14 +115,7 @@ for (batch, (xs, ys)) in enumerate(ds):
     y_conv = conv_encoder(tf.one_hot(ys, 33))
     y = tf.concat([y_attention, y_conv], axis=-1)
     y_mean = d_mean(y)
-
-    if batch == 0:
-        x_out = x_mean
-        y_out = y_mean
-
-    else:
-        x_out = tf.concat([x_out, x_mean], axis=0)
-        y_out = tf.concat([y_out, y_mean], axis=0)
+    y_out = y_out.append(y_mean.numpy())
 
 np.save('x_mean', x_out.numpy())
 np.save('y_mean', y_out.numpy())
