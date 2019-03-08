@@ -24,8 +24,8 @@ df = df.dropna()
 
 xs = df.values[:, 0]
 ys = df.values[:, 1]
-xs = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, xs)
-ys = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, ys)
+# xs = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, xs)
+# ys = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, ys)
 f_handle = open('lang_obj.p', 'rb')
 lang_obj = pickle.load(f_handle)
 f_handle.close()
@@ -37,30 +37,54 @@ ys = tf.convert_to_tensor(ys)
 
 # define models
 gan_box = gan.ConditionalGAN(batch_sz = 2048)
-enc_f = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False,
-    enc_units = 256)
-enc_b = nets.Encoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True,
-    enc_units = 256)
-attention = nets.BidirectionalWideAttention(128)
-fcuk = nets.FullyConnectedUnits([128, 'leaky_relu', 1024, 'leaky_relu', 512, 'leaky_relu', 32])
-d_mean = nets.FullyConnectedUnits([16])
+# define models
+enc_f = nets.GRUEncoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False,
+    enc_units = 512)
+enc_b = nets.GRUEncoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True,
+    enc_units = 512)
+conv_encoder = nets.ConvEncoder(
+    conv_units=[256, 512, 512],
+    # pool_sizes=[8, 8, 8, 8],
+    conv_kernel_sizes=[8, 12, 16],
+    fcs=[128, 0.2, 'elu',
+             512, 0.2, 'elu',
+             512])
+fcuk = nets.FullyConnectedUnits([512, 'leaky_relu', 0.25, 512])
+d_mean = nets.FullyConnectedUnits([256])
+d_log_var = nets.FullyConnectedUnits([256])
+
+fcuk_props = nets.FullyConnectedUnits([9])
+fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
+decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 512)
+
 
 # initialize
-xs_0 = tf.zeros([BATCH_SZ, 64])
-eo_f, h_f = enc_f(xs_0)
-eo_b, h_b = enc_b(xs_0)
-attention_weights = attention(eo_f, eo_b, h_f, h_b)
-attention_weights = fcuk(attention_weights)
-mean = d_mean(attention_weights)
+xs = tf.zeros([BATCH_SZ, 64], dtype=tf.int64)
+eo_f, h_f = enc_f(xs)
+eo_b, h_b = enc_b(xs)
+x_attention = tf.concat([h_f, h_b], axis=-1)
+x_attention = fcuk(x_attention)
+x_conv = conv_encoder(tf.one_hot(xs, 33))
+x = tf.concat([x_attention, x_conv], axis=-1)
+mean = d_mean(x)
+log_var = d_log_var(x)
+z_noise = tf.clip_by_norm(tf.random_normal(mean.shape), 1e5) * tf.exp(log_var * .5)
+z = z_noise + mean
+ys_hat = fcuk_props(mean)
+fp_hat = fcuk_fp(mean)
+xs_bar = decoder(z)
 
 # load weights
 enc_f.load_weights('weights/enc_f.h5')
 enc_b.load_weights('weights/enc_b.h5')
-attention.load_weights('weights/attention_weights.h5')
+conv_encoder.load_weights('weights/conv_encoder.h5')
 fcuk.load_weights('weights/fcuk.h5')
 d_mean.load_weights('weights/d_mean.h5')
-
-
+d_log_var.load_weights('weights/d_log_var.h5')
+fcuk_props.load_weights('weights/fcuk_props.h5')
+fcuk_fp.load_weights('weights/fcuk_fp.h5')
+# bypass_v_f.load_weights('weights/bypass_v_f.h5')
+decoder.load_weights('weights/decoder.h5')
 
 ds = tf.data.Dataset.from_tensor_slices((xs, ys))
 ds = ds.apply(tf.contrib.data.batch_and_drop_remainder(BATCH_SZ))

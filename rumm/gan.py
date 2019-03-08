@@ -22,11 +22,11 @@ import nets
 # ===============
 class ConditionalGAN(tf.keras.Model):
     """Generative adversary network.
-    
+
     Generator: Takes an input from the source latent space, sample from N(0, 1),
     and concatenate together, to feed into a neural network, to produce a target
     point on latent space.
-    
+
     Discriminator: Discriminate whether the molecule pair is generic or synthesized.
 
     Parameters
@@ -47,7 +47,7 @@ class ConditionalGAN(tf.keras.Model):
         self.batch_sz = batch_sz
         self.ds = None
 
-    @tf.contrib.eager.defun
+    # @tf.contrib.eager.defun
     def g_sample(self, x):
         """Sample from N(0, 1), concatenate with the point on the latent space,
         and transform it using the generator.
@@ -55,7 +55,7 @@ class ConditionalGAN(tf.keras.Model):
         Parameters
         ----------
         x :
-            
+
 
         Returns
         -------
@@ -66,7 +66,7 @@ class ConditionalGAN(tf.keras.Model):
         y_r = self.G(r)
         return y_r
 
-    @tf.contrib.eager.defun
+    # @tf.contrib.eager.defun
     def d_predict(self, x, y):
         """Predict whether the pair is generic or synthesized.
 
@@ -93,7 +93,7 @@ class ConditionalGAN(tf.keras.Model):
         x :
             param y:
         y :
-            
+
 
         Returns
         -------
