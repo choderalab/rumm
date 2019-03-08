@@ -39,9 +39,9 @@ ys = tf.convert_to_tensor(ys)
 gan_box = gan.ConditionalGAN(batch_sz = 2048)
 # define models
 enc_f = nets.GRUEncoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=False,
-    enc_units = 512)
+    enc_units = 128)
 enc_b = nets.GRUEncoder(vocab_size=vocab_size, batch_sz = BATCH_SZ, reverse=True,
-    enc_units = 512)
+    enc_units = 128)
 conv_encoder = nets.ConvEncoder(
     conv_units=[256, 512, 512],
     # pool_sizes=[8, 8, 8, 8],
@@ -55,8 +55,10 @@ d_log_var = nets.FullyConnectedUnits([256])
 
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
-decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 512)
-
+decoder = nets.OneHotDecoder(vocab_size=vocab_size, dec_units = 256)
+bypass_v_f = nets.FullyConnectedUnits([1])
+simple_decoder = nets.SimpleDecoder(vocab_size=vocab_size, dec_units=1024,
+    batch_sz = BATCH_SZ)
 
 # initialize
 xs = tf.zeros([BATCH_SZ, 64], dtype=tf.int64)
@@ -73,6 +75,8 @@ z = z_noise + mean
 ys_hat = fcuk_props(mean)
 fp_hat = fcuk_fp(mean)
 xs_bar = decoder(z)
+
+
 
 # load weights
 enc_f.load_weights('weights/enc_f.h5')
