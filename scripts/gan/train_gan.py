@@ -26,7 +26,7 @@ xs = df.values[:, 0]
 ys = df.values[:, 1]
 # xs = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, xs)
 # ys = np.apply_along_axis(lambda x: 'G' + x + 'E', 0, ys)
-f_handle = open('lang_obj.p', 'rb')
+f_handle = open('weights/lang_obj.p', 'rb')
 lang_obj = pickle.load(f_handle)
 f_handle.close()
 vocab_size = len(lang_obj.idx2ch) + 1
@@ -61,12 +61,12 @@ simple_decoder = nets.SimpleDecoder(vocab_size=vocab_size, dec_units=1024,
     batch_sz = BATCH_SZ)
 
 # initialize
-xs = tf.zeros([BATCH_SZ, 64], dtype=tf.int64)
-eo_f, h_f = enc_f(xs)
-eo_b, h_b = enc_b(xs)
+xs0 = tf.zeros([BATCH_SZ, 64], dtype=tf.int64)
+eo_f, h_f = enc_f(xs0)
+eo_b, h_b = enc_b(xs0)
 x_attention = tf.concat([h_f, h_b], axis=-1)
 x_attention = fcuk(x_attention)
-x_conv = conv_encoder(tf.one_hot(xs, 33))
+x_conv = conv_encoder(tf.one_hot(xs0, 33))
 x = tf.concat([x_attention, x_conv], axis=-1)
 mean = d_mean(x)
 log_var = d_log_var(x)
