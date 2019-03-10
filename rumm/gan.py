@@ -37,7 +37,8 @@ class ConditionalGAN(tf.keras.Model):
 
     """
     def __init__(self,
-                 g_config = [512, 'leaky_relu', 1024, 'leaky_relu', 1024, 'leaky_relu', 8],
+                 g_config = [512, 'leaky_relu', 1024, 'leaky_relu', 1024,
+                   'leaky_relu', 256],
                  d_config = [128, 0.25, 'leaky_relu', 128, 0.25, 'leaky_relu', 1, 'sigmoid'],
                  batch_sz = 2048, n_epochs = 500):
 
@@ -46,6 +47,7 @@ class ConditionalGAN(tf.keras.Model):
         self.D = nets.FullyConnectedUnits(d_config)
         self.batch_sz = batch_sz
         self.ds = None
+        self.n_epochs = n_epochs
 
     # @tf.contrib.eager.defun
     def g_sample(self, x):
@@ -61,9 +63,10 @@ class ConditionalGAN(tf.keras.Model):
         -------
 
         """
-        r = tf.clip_by_norm(tf.random_normal(x.shape), 1e5)
-        x = tf.concatenate([x, r], axis=1)
-        y_r = self.G(r)
+        r = tf.clip_by_norm(tf.random_normal(x.shape,
+            dtype=tf.float32), 1e5)
+        x = tf.concat([x, r], axis=1)
+        y_r = self.G(x)
         return y_r
 
     # @tf.contrib.eager.defun
@@ -81,7 +84,7 @@ class ConditionalGAN(tf.keras.Model):
         -------
 
         """
-        pair = tf.concatenate([x, y], axis=1)
+        pair = tf.concat([x, y], axis=0)
         z = self.D(pair)
         return z
 
@@ -99,7 +102,9 @@ class ConditionalGAN(tf.keras.Model):
         -------
 
         """
-        ds = tf.data.Dataset.from_tensor_slices((x, y)).shuffle(y.shape[0])
+        x = tf.convert_to_tensor(x, dtype=tf.float32)
+        y = tf.convert_to_tensor(y, dtype=tf.float32)
+        ds = tf.data.Dataset.from_tensor_slices((x, y))# .shuffle(y.shape[0])
         ds = ds.apply(tf.contrib.data.batch_and_drop_remainder(self.batch_sz))
         self.ds = ds
 
@@ -108,29 +113,29 @@ class ConditionalGAN(tf.keras.Model):
         optimizer=tf.train.AdamOptimizer() # use adam optimizer here
         for epoch in range(self.n_epochs): # loop through epochs
             for (batch, (xs, ys)) in enumerate(self.ds): # loop through datasets
-                with tf.GradientTape() as tape:
-                    y_r = g_sample(xs)
+                with tf.GradientTape(persistent=True) as tape:
+
+                    y_r = self.g_sample(xs)
                     z_generic = self.d_predict(xs, ys)
                     z_synthesized = self.d_predict(xs, y_r)
                     loss_d = -tf.reduce_mean(tf.log(z_generic) + tf.log(1 - z_synthesized))
                     loss_g = tf.reduce_mean(tf.log(1 - z_synthesized))
 
-                # clip the loss function
-                loss_d = tf.clip_by_norm(loss_d, 1e5)
-                loss_g = tf.clip_by_norm(loss_d, 1e5)
+                    loss_d = tf.clip_by_norm(loss_d, 1e5)
+                    loss_g = tf.clip_by_norm(loss_d, 1e5)
 
                 # get the variables
                 var_d = self.D.variables
                 var_g = self.G.variables
 
                 # get the gradients, again, with clip
-                grad_d = tf.clip_by_norm(tape.gradient(loss_d, var_d), 1e5)
-                grad_g = tf.clip_by_norm(tape.gradient(loss_g, var_g), 1e5)
+                grad_d = tape.gradient(loss_d, var_d)
+                grad_g = tape.gradient(loss_g, var_g)
 
-                optimizer.apply_gradients(zip(var_d, grad_d), tf.train.get_or_create_global_step())
-                optimizer.apply_gradients(zip(var_g, grad_g), tf.train.get_or_create_global_step())
+                optimizer.apply_gradients(zip(grad_d, var_d), tf.train.get_or_create_global_step())
+                optimizer.apply_gradients(zip(grad_g, var_g), tf.train.get_or_create_global_step())
 
             self.D.save_weights('./D.h5')
             self.G.save_weights('./G.h5')
             print('D: %s' % loss_d.numpy())
-            print('G: &s' % loss_g.numpy())
+            print('G: %s' % loss_g.numpy())
