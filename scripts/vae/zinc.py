@@ -68,8 +68,8 @@ conv_encoder = nets.ConvEncoder(
              512, 0.2, 'elu',
              512])
 fcuk = nets.FullyConnectedUnits([512, 'leaky_relu', 0.25, 512])
-d_mean = nets.FullyConnectedUnits([256])
-d_log_var = nets.FullyConnectedUnits([256])
+d_mean = nets.FullyConnectedUnits([32])
+d_log_var = nets.FullyConnectedUnits([32])
 
 fcuk_props = nets.FullyConnectedUnits([9])
 fcuk_fp = nets.FullyConnectedUnits([167, 'sigmoid'])
